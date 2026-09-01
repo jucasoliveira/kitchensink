@@ -5,13 +5,21 @@
 #
 #   ./scripts/create-github-issues.sh --dry-run    # print what would happen
 #   ./scripts/create-github-issues.sh              # create / resume
+#   ./scripts/create-github-issues.sh --sync       # create / resume, AND update the body and
+#                                                  # labels of issues that already exist, so
+#                                                  # GitHub becomes a projection of backlog.json
 #
 # IDEMPOTENT: an issue whose exact title already exists is reused, not recreated,
 # so the script is safe to re-run after a partial failure.
 set -euo pipefail
 
-DRY=0
-[[ "${1:-}" == "--dry-run" ]] && DRY=1
+DRY=0; SYNC=0
+case "${1:-}" in
+  --dry-run) DRY=1 ;;
+  --sync)    SYNC=1 ;;
+  "")        ;;
+  *) echo "usage: $0 [--dry-run|--sync]"; exit 2 ;;
+esac
 
 cd "$(dirname "$0")/.."
 BACKLOG=scripts/backlog.json
@@ -35,14 +43,17 @@ MS=$(jq -r .milestone "$BACKLOG")
 MS_DESC=$(jq -r .milestone_description "$BACKLOG")
 MS_NUM=""
 if [[ $DRY == 0 ]]; then
-  MS_NUM=$(gh api "repos/$REPO/milestones?state=all" \
-             -q "[.[] | select(.description == \"$MS_DESC\")] | first | .number" 2>/dev/null || true)
-  if [[ -z "$MS_NUM" || "$MS_NUM" == "null" ]]; then
-    MS_NUM=$(gh api "repos/$REPO/milestones" -f title="$MS" -f description="$MS_DESC" -q .number)
+  ms_number() { gh api "repos/$REPO/milestones?state=all&per_page=100" \
+                  -q "[.[] | select(.title == \"$MS\")] | first | .number // empty"; }
+  MS_NUM=$(ms_number)
+  if [[ -z "$MS_NUM" ]]; then
+    # create; on 422 (already_exists, e.g. a closed milestone) fall back to a re-query
+    MS_NUM=$(gh api "repos/$REPO/milestones" -f title="$MS" -f description="$MS_DESC" -q .number 2>/dev/null || ms_number)
     echo "== milestone created: #$MS_NUM"
   else
     echo "== milestone reused: #$MS_NUM"
   fi
+  [[ -n "$MS_NUM" ]] || { echo "could not resolve milestone '$MS'"; exit 1; }
 else
   echo "== milestone: $MS"
 fi
@@ -64,6 +75,20 @@ create_issue() { # $1 title, $2 body, $3 comma-separated labels -> issue number
 }
 
 node_id() { gh issue view "$1" --json id -q .id; }
+
+sync_issue() { # $1 number, $2 body, $3 desired labels (csv) - makes the issue match the backlog
+  local f cur add del args
+  f=$(mktemp); printf '%s' "$2" > "$f"
+  cur=$(gh issue view "$1" --json labels -q '[.labels[].name] | join(",")')
+  add=$(comm -13 <(tr ',' '\n' <<<"$cur" | sort -u) <(tr ',' '\n' <<<"$3" | sort -u) | paste -sd, -)
+  del=$(comm -23 <(tr ',' '\n' <<<"$cur" | sort -u) <(tr ',' '\n' <<<"$3" | sort -u) | paste -sd, -)
+  args=(issue edit "$1" --body-file "$f")
+  [[ -n "$add" ]] && args+=(--add-label "$add")
+  [[ -n "$del" ]] && args+=(--remove-label "$del")
+  gh "${args[@]}" >/dev/null
+  command rm -f "$f"
+  [[ -n "$add$del" ]] && echo "      labels +[${add:-}] -[${del:-}]" || true
+}
 
 link_sub() { # $1 parent node id, $2 child node id
   gh api graphql -H "GraphQL-Features: sub_issues" \
@@ -93,7 +118,10 @@ for i in $(seq 0 $((EPIC_COUNT-1))); do
     echo "  DRY: create \"$EFULL\" [$ELABELS]"
   else
     N=$(find_issue "$EFULL")
-    if [[ -n "$N" ]]; then echo "   = #$N (exists)"; else
+    if [[ -n "$N" ]]; then
+      if [[ $SYNC == 1 ]]; then sync_issue "$N" "$BODY" "$ELABELS"; echo "   ~ #$N (synced)"
+      else echo "   = #$N (exists)"; fi
+    else
       N=$(create_issue "$EFULL" "$BODY" "$ELABELS"); echo "   -> #$N"
     fi
     PARENT=$(node_id "$N")
@@ -109,7 +137,10 @@ for i in $(seq 0 $((EPIC_COUNT-1))); do
       echo "  DRY: sub  $STITLE   [$SLABELS]"
     else
       SN=$(find_issue "$STITLE")
-      if [[ -n "$SN" ]]; then MARK="="; else SN=$(create_issue "$STITLE" "$SBODY" "$SLABELS"); MARK="->"; fi
+      if [[ -n "$SN" ]]; then
+        MARK="="
+        if [[ $SYNC == 1 ]]; then sync_issue "$SN" "$SBODY" "$SLABELS"; MARK="~"; fi
+      else SN=$(create_issue "$STITLE" "$SBODY" "$SLABELS"); MARK="->"; fi
       if link_sub "$PARENT" "$(node_id "$SN")"; then echo "   $MARK #$SN linked"; else echo "   $MARK #$SN (already linked or sub-issues unavailable)"; fi
     fi
   done

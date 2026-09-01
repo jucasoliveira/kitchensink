@@ -1,0 +1,57 @@
+# ---------------------------------------------------------------------------
+# Java Pet Store 1.3.1_02 on its original runtime.
+#
+# The 2002 Sun binaries are licensed and cannot be redistributed, so they are
+# NOT in this repo. Drop them into ./vendor before building - see README.md.
+#
+# Built for linux/amd64 and run under emulation on Apple Silicon. Expect it to
+# be slow; that is the cost of running a 32-bit x86 JVM from 2002 on arm64.
+# ---------------------------------------------------------------------------
+FROM --platform=linux/amd64 debian:bullseye-slim
+
+# The Sun JDK ships as 32-bit x86, so we need i386 multiarch support.
+RUN dpkg --add-architecture i386 \
+ && apt-get update \
+ && apt-get install -y --no-install-recommends \
+      libc6:i386 libstdc++6:i386 zlib1g:i386 \
+      procps net-tools curl ca-certificates \
+ && rm -rf /var/lib/apt/lists/*
+
+ENV JAVA_HOME=/opt/j2sdk1.4.2
+ENV J2EE_HOME=/opt/j2sdkee1.3.1
+ENV PATH=$JAVA_HOME/bin:$J2EE_HOME/bin:$PATH
+
+WORKDIR /opt
+
+# --- J2SE 1.4.2 (32-bit Linux x86) -----------------------------------------
+# Accepts either the self-extracting .bin or a plain tarball.
+COPY vendor/j2sdk-*-linux-i586.* /tmp/jdk/
+RUN set -eux; cd /tmp/jdk; f=$(ls | head -1); \
+    case "$f" in \
+      *.bin) chmod +x "$f"; yes | ./"$f" > /dev/null ;; \
+      *.tar.gz|*.tgz) tar xzf "$f" ;; \
+    esac; \
+    mv j2sdk* "$JAVA_HOME"; \
+    rm -rf /tmp/jdk; \
+    "$JAVA_HOME/bin/java" -version
+
+# --- J2EE SDK 1.3.1 Reference Implementation --------------------------------
+COPY vendor/j2sdkee-1_3_1-linux.tar.gz /tmp/
+RUN set -eux; cd /opt; tar xzf /tmp/j2sdkee-1_3_1-linux.tar.gz; rm /tmp/j2sdkee-1_3_1-linux.tar.gz; \
+    test -d "$J2EE_HOME"
+
+# The demo's installing.html requires this grant before deployment will work.
+RUN printf '\ngrant {\n  permission java.io.FilePermission "${com.sun.enterprise.home}${/}lib${/}endorsed${/}xalan.jar", "read";\n};\n' \
+      >> "$J2EE_HOME/lib/security/server.policy"
+
+# --- The application --------------------------------------------------------
+COPY petstore1.3.1_02 /opt/petstore
+WORKDIR /opt/petstore
+RUN chmod +x setup.sh src/build.sh
+
+COPY entrypoint.sh /usr/local/bin/entrypoint.sh
+RUN chmod +x /usr/local/bin/entrypoint.sh
+
+# 8000 = web tier, 1050 = RMI/JNDI for the Swing admin client
+EXPOSE 8000 1050
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]

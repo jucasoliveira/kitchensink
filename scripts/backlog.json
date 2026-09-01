@@ -1,5 +1,5 @@
 {
-  "milestone": "Pet Store -> Spring Boot (3.5 days)",
+  "milestone": "Pet Store -> Spring Boot",
   "milestone_description": "Migrate Java Pet Store 1.3.1_02 to Spring Boot 4.1.1 / Java 21 with MongoDB. 3.5 days.",
   "labels": [
     {
@@ -46,18 +46,29 @@
       "name": "cut-candidate",
       "color": "e99695",
       "description": "Dropped first if the schedule slips"
+    },
+    {
+      "name": "T1",
+      "color": "0052cc",
+      "description": "Must ship - the kitchensink slice"
+    },
+    {
+      "name": "T2",
+      "color": "5db3f7",
+      "description": "Should ship - catalog read path"
     }
   ],
-  "total_estimate_h": 29.75,
+  "total_estimate_h": 23.5,
   "epics": [
     {
       "id": "E1",
-      "title": "Foundation: runtime, build, CI, local infra",
+      "title": "Foundation + walking skeleton",
       "labels": [
+        "T1",
         "epic",
         "infra"
       ],
-      "summary": "Everything that must exist before a single line of business logic is written: the Spring Boot 4.1.1 / Java 21 skeleton, module layout, local infra, and the CI gates. See docs/adr/0001-target-runtime.md.",
+      "summary": "Everything that must exist before the real slice is built: the Spring Boot 4.1.1 / Java 21 skeleton, module layout, local infra and CI gates (1.1-1.6), then a tracer bullet through every layer of the target stack on the thinnest possible path (1.7-1.10). Anything the tracer bullet hard-codes, E4 replaces. See docs/adr/0001-target-runtime.md and docs/adr/0006-deliverable-scope-kitchensink-slice.md.",
       "subs": [
         {
           "id": "1.1",
@@ -66,6 +77,7 @@
           "legacy_anchor": "-",
           "acceptance": "App boots, one page renders, one document round-trips. TIMEBOX 90 min; on overrun fall back to the latest 3.5.x line and amend ADR-0001.",
           "labels": [
+            "T1",
             "infra",
             "risk"
           ]
@@ -77,6 +89,7 @@
           "legacy_anchor": "the four EARs (petstore/opc/supplier/admin)",
           "acceptance": "catalog, cart, customer, order, opc, supplier, admin packages exist; ArchUnit asserts the dependency rules before there is code to violate them.",
           "labels": [
+            "T1",
             "infra"
           ]
         },
@@ -87,6 +100,7 @@
           "legacy_anchor": "setup.xml create_petstore_db / create_opc_db / create_supplier_db",
           "acceptance": "docker compose up then mvn spring-boot:run works from a clean clone.",
           "labels": [
+            "T1",
             "infra"
           ]
         },
@@ -97,6 +111,7 @@
           "legacy_anchor": "build.xml / vendored Ant 1.x",
           "acceptance": "Checks required on main; parity tests run as their own job so a parity break looks different from a unit-test break.",
           "labels": [
+            "T1",
             "infra"
           ]
         },
@@ -107,6 +122,7 @@
           "legacy_anchor": "sun-j2ee-ri.xml JNDI wiring, */util/JNDINames.java",
           "acceptance": "--spring.profiles.active=jpa switches the store with no code change.",
           "labels": [
+            "T1",
             "infra",
             "persistence"
           ]
@@ -118,7 +134,58 @@
           "legacy_anchor": "-",
           "acceptance": "Backlog script runs clean; main is protected; conventional commits documented.",
           "labels": [
+            "T1",
             "infra"
+          ]
+        },
+        {
+          "id": "1.7",
+          "title": "1.7 Walking skeleton: customer registration aggregate, Mongo round-trip",
+          "estimate_h": 0.75,
+          "legacy_anchor": "components/customer CustomerEJB -> AccountEJB -> ContactInfoEJB -> AddressEJB CMP graph",
+          "acceptance": "Thinnest possible aggregate (account + contact info only; no profile, no credit card): register, read back from MongoDB, assert the document shape. The domain type carries no Spring Data annotation, so the port/adapter split of 7.1 is proven here rather than asserted later.",
+          "labels": [
+            "T1",
+            "infra",
+            "persistence",
+            "slice"
+          ]
+        },
+        {
+          "id": "1.8",
+          "title": "1.8 Walking skeleton: Jakarta Validation + Spring Security chain + BCrypt",
+          "estimate_h": 0.75,
+          "legacy_anchor": "components/signon/.../web/SignOnFilter.java (finding #3); components/signon/.../user/ejb/UserEJB.java:88 password.equals(getPassword()) (finding #1)",
+          "acceptance": "Constraint violations render on the form instead of 500ing; one protected URL redirects when anonymous; passwords are BCrypt from the first commit that stores one, so no plaintext credential path ever exists in this repository's history. Absorbs what was E4.3.",
+          "labels": [
+            "T1",
+            "infra",
+            "risk",
+            "slice"
+          ]
+        },
+        {
+          "id": "1.9",
+          "title": "1.9 Walking skeleton: one Thymeleaf form + list page and one REST endpoint",
+          "estimate_h": 0.5,
+          "legacy_anchor": "signon createuser.jsp + WAF HTMLAction/screenflow; the REST endpoint has NO legacy anchor -- Pet Store predates REST",
+          "acceptance": "Register-and-list works in a browser and over /api, both through the same application service, proving the view layer is not load-bearing. The missing anchor is the point: first written evidence of a capability the legacy app never had.",
+          "labels": [
+            "T1",
+            "infra",
+            "slice"
+          ]
+        },
+        {
+          "id": "1.10",
+          "title": "1.10 Walking skeleton: test harness proven end to end (Testcontainers, ArchUnit, CI)",
+          "estimate_h": 0.25,
+          "legacy_anchor": "none -- the legacy codebase ships zero tests, which is itself the finding",
+          "acceptance": "One Testcontainers-backed integration test over the slice and one ArchUnit rule, green in GitHub Actions on a clean runner. Gate for Epics 3-6: no further slice starts until a slice-shaped test can fail for the right reason.",
+          "labels": [
+            "T1",
+            "infra",
+            "parity"
           ]
         }
       ]
@@ -127,6 +194,7 @@
       "id": "E2",
       "title": "Parity harness: characterization tests + seed data",
       "labels": [
+        "T1",
         "epic",
         "parity"
       ],
@@ -139,17 +207,19 @@
           "legacy_anchor": "apps/petstore/src/docroot/populate/PopulateSQL.xml, Populate-UTF8.xml",
           "acceptance": "Same category/product/item counts per locale as the legacy seed; one command reloads.",
           "labels": [
+            "T1",
             "parity",
             "persistence"
           ]
         },
         {
           "id": "2.2",
-          "title": "2.2 Encode the 7 business rules as failing tests, tagged @Tag(\"parity\")",
+          "title": "2.2 Encode the in-scope business rules as parity tests, tagged @Tag(\"parity\")",
           "estimate_h": 1,
           "legacy_anchor": "docs/01-legacy-architecture.md section 5",
-          "acceptance": "Red before Epics 3-6. Rules: auto-approve under $500/JPY50000; PENDING->APPROVED|DENIED->COMPLETED; empty cart rejected; duplicate account rejected; order id prefix 1001 + counter; completion only when all line items ship; invoice fans out to two subscribers.",
+          "acceptance": "Duplicate-account rejection, sign-on success/failure semantics, locale-scoped catalog rows and the BCrypt deviation each have a test naming the legacy rule or file:line it preserves. The five deferred rules (approval threshold, order-id prefix counter, empty-cart, partial shipment, order lifecycle) are listed as explicitly NOT covered in the traceability matrix - a known gap is not the same as an oversight.",
           "labels": [
+            "T1",
             "parity"
           ]
         },
@@ -160,8 +230,9 @@
           "legacy_anchor": "mappings.xml, EJB inventory section 4",
           "acceptance": "Every in-scope legacy component maps to a new component or to an explicit 'dropped, because...'.",
           "labels": [
-            "parity",
-            "docs"
+            "T1",
+            "docs",
+            "parity"
           ]
         },
         {
@@ -171,8 +242,9 @@
           "legacy_anchor": "EJB jar boundaries",
           "acceptance": "No cross-module internals; no controller -> repository; domain imports no Spring persistence annotation. Violations fail the build.",
           "labels": [
-            "parity",
-            "infra"
+            "T1",
+            "infra",
+            "parity"
           ]
         },
         {
@@ -182,8 +254,9 @@
           "legacy_anchor": "Cloudscape / jdbc/petstore",
           "acceptance": "Mongo-backed tests run in CI with no local install.",
           "labels": [
-            "parity",
-            "infra"
+            "T1",
+            "infra",
+            "parity"
           ]
         }
       ]
@@ -192,6 +265,7 @@
       "id": "E3",
       "title": "Catalog slice (read path)",
       "labels": [
+        "T2",
         "epic",
         "slice"
       ],
@@ -204,6 +278,7 @@
           "legacy_anchor": "category_details / product_details / item_details (locale column)",
           "acceptance": "Plain Java, no persistence annotations.",
           "labels": [
+            "T2",
             "slice"
           ]
         },
@@ -214,8 +289,9 @@
           "legacy_anchor": "apps/petstore/src/docroot/CatalogDAOSQL.xml (7 statements x 2 dialects)",
           "acceptance": "Product page is one findById; the six-way join is gone.",
           "labels": [
-            "slice",
+            "T2",
             "persistence",
+            "slice",
             "stretch"
           ]
         },
@@ -226,9 +302,10 @@
           "legacy_anchor": "CatalogDAOFactory",
           "acceptance": "Same port test suite passes under the jpa profile.",
           "labels": [
-            "slice",
+            "T2",
+            "cut-candidate",
             "persistence",
-            "cut-candidate"
+            "slice"
           ]
         },
         {
@@ -238,6 +315,7 @@
           "legacy_anchor": "components/catalog/.../client/CatalogHelper.java",
           "acceptance": "Search behaviour documented where a text index differs from the legacy LIKE.",
           "labels": [
+            "T2",
             "slice"
           ]
         },
@@ -248,6 +326,8 @@
           "legacy_anchor": "docroot/template.jsp, screendefinitions_en_US.xml",
           "acceptance": "banner/sidebar/body/footer composition preserved.",
           "labels": [
+            "T2",
+            "cut-candidate",
             "slice"
           ]
         },
@@ -258,8 +338,8 @@
           "legacy_anchor": "-",
           "acceptance": "Same application service, no view coupling. Proves the layering.",
           "labels": [
-            "slice",
-            "cut-candidate"
+            "T2",
+            "slice"
           ]
         }
       ]
@@ -268,51 +348,56 @@
       "id": "E4",
       "title": "Identity, customer, i18n",
       "labels": [
+        "T1",
         "epic",
         "slice"
       ],
-      "summary": "Sign-on, account creation and profile. Includes the one deliberate security deviation from parity.",
+      "summary": "Sign-on, account creation and profile taken from the walking-skeleton stub (1.7-1.9) to full parity. Estimates assume the aggregate, the security chain and the registration form already exist; this epic widens them rather than starting them.",
       "subs": [
         {
           "id": "4.1",
-          "title": "4.1 Customer aggregate with embedded value objects",
-          "estimate_h": 0.75,
+          "title": "4.1 Widen the customer aggregate: profile, address, credit card as embedded values",
+          "estimate_h": 0.5,
           "legacy_anchor": "AddressEJB / ContactInfoEJB / CreditCardEJB / LineItemEJB declared in 4 ejb-jar.xml files (finding #4)",
-          "acceptance": "One definition each; the EJB 2.0 cross-jar duplication is removed and the before/after is shown in the playback.",
+          "acceptance": "Extends the 1.7 stub. One definition each; the EJB 2.0 cross-jar duplication is removed and the before/after is shown in the playback.",
           "labels": [
+            "T1",
             "slice"
           ]
         },
         {
           "id": "4.2",
-          "title": "4.2 Spring Security filter chain replacing SignOnFilter",
-          "estimate_h": 1,
+          "title": "4.2 Full URL-protection parity on the 1.8 security chain",
+          "estimate_h": 0.5,
           "legacy_anchor": "components/signon/.../web/SignOnFilter.java, signon-config.xml (finding #3)",
-          "acceptance": "Same URLs protected; unauthenticated access redirects to sign-in.",
+          "acceptance": "Extends the 1.8 chain from one protected URL to the whole signon-config.xml set; same URLs protected as the legacy filter, unauthenticated access redirects to sign-in.",
           "labels": [
+            "T1",
             "slice"
           ]
         },
         {
           "id": "4.3",
-          "title": "4.3 BCrypt password hashing (documented deviation)",
-          "estimate_h": 0.25,
+          "title": "4.3 BCrypt password hashing -- LANDED IN 1.8, kept for traceability",
+          "estimate_h": 0.0,
           "legacy_anchor": "components/signon/.../user/ejb/UserEJB.java:88 password.equals(getPassword()) (finding #1)",
-          "acceptance": "No plaintext credential path anywhere; the deviation is stated in the README.",
+          "acceptance": "Closed by 1.8. Kept as a row so the one deliberate deviation from parity keeps its own traceable issue against finding #1 and its README entry.",
           "labels": [
-            "slice",
-            "risk"
+            "T1",
+            "risk",
+            "slice"
           ]
         },
         {
           "id": "4.4",
           "title": "4.4 Create-account flow + duplicate-account rule",
-          "estimate_h": 0.75,
+          "estimate_h": 0.5,
           "legacy_anchor": "CreateUserEJBAction, DuplicateAccountException -> duplicate_account.screen",
-          "acceptance": "Parity test green.",
+          "acceptance": "Extends the 1.9 registration form with the duplicate-account rule and its screen. Parity test green.",
           "labels": [
-            "slice",
-            "parity"
+            "T1",
+            "parity",
+            "slice"
           ]
         },
         {
@@ -322,8 +407,9 @@
           "legacy_anchor": "ProfileEJB fields, screendefinitions_ja_JP.xml (finding #6)",
           "acceptance": "Locale switch works; preferredLanguage honoured. ja_JP UI messages are a cut candidate; the locale-scoped DATA model is not.",
           "labels": [
-            "slice",
-            "cut-candidate"
+            "T1",
+            "cut-candidate",
+            "slice"
           ]
         },
         {
@@ -333,157 +419,21 @@
           "legacy_anchor": "customer ejb-jar.xml CMP fields",
           "acceptance": "Both profiles green.",
           "labels": [
-            "slice",
-            "persistence"
+            "T1",
+            "persistence",
+            "slice"
           ]
-        }
-      ]
-    },
-    {
-      "id": "E5",
-      "title": "Cart & checkout",
-      "labels": [
-        "epic",
-        "slice"
-      ],
-      "summary": "The purchase path: session cart through to a persisted PurchaseOrder aggregate.",
-      "subs": [
+        },
         {
-          "id": "5.1",
-          "title": "5.1 Session-scoped Cart",
+          "id": "4.7",
+          "title": "4.7 REST resource for registration (/api/customers)",
           "estimate_h": 0.75,
-          "legacy_anchor": "ShoppingCartEJB (stateful session bean)",
-          "acceptance": "Survives navigation; cleared on checkout.",
+          "legacy_anchor": "nothing - grep -rl javax.ws.rs src returns 0 files; kitchensink ships MemberResourceRESTService",
+          "acceptance": "POST /api/customers registers, GET /api/customers/{id} returns the aggregate, validation failures return 400 with per-field detail. Promotes the tracer-bullet endpoint from 1.9 to the real resource and closes one of the two empty rows in the ADR-0006 mapping table.",
           "labels": [
-            "slice"
-          ]
-        },
-        {
-          "id": "5.2",
-          "title": "5.2 cart.do parity: add / update quantity / delete / subtotal",
-          "estimate_h": 0.75,
-          "legacy_anchor": "CartHTMLAction:82, CartEJBAction",
-          "acceptance": "Screen behaviour matches the legacy cart.",
-          "labels": [
-            "slice",
-            "parity"
-          ]
-        },
-        {
-          "id": "5.3",
-          "title": "5.3 Order id generator: prefix 1001 + counter",
-          "estimate_h": 0.5,
-          "legacy_anchor": "components/uidgen/.../counter/ejb/CounterEJB.java:67, OrderEJBAction getUniqueId(\"1001\")",
-          "acceptance": "Ids are 10011, 10012, ...; parity test green.",
-          "labels": [
-            "slice",
-            "parity"
-          ]
-        },
-        {
-          "id": "5.4",
-          "title": "5.4 Checkout -> PurchaseOrder aggregate + empty-cart rule",
-          "estimate_h": 1,
-          "legacy_anchor": "OrderEJBAction, ShoppingCartEmptyOrderException -> cart_empty_order_error.screen",
-          "acceptance": "Order persisted as one document; empty cart rejected.",
-          "labels": [
-            "slice",
-            "parity"
-          ]
-        },
-        {
-          "id": "5.5",
-          "title": "5.5 Cart + order-complete screens",
-          "estimate_h": 0.5,
-          "legacy_anchor": "cart.screen, order_complete.screen",
-          "acceptance": "-",
-          "labels": [
-            "slice"
-          ]
-        }
-      ]
-    },
-    {
-      "id": "E6",
-      "title": "Order workflow (async parity)",
-      "labels": [
-        "epic",
-        "slice"
-      ],
-      "summary": "The 8 MDBs and 6 queues + 1 topic become typed, transactionally published in-process events. See docs/adr/0004-async-workflow.md.",
-      "subs": [
-        {
-          "id": "6.1",
-          "title": "6.1 Event model + transactional publisher",
-          "estimate_h": 0.5,
-          "legacy_anchor": "XML-over-JMS, components/xmldocuments, DTD validation env-entries",
-          "acceptance": "Typed events replace DTD-validated XML; published after commit.",
-          "labels": [
-            "slice"
-          ]
-        },
-        {
-          "id": "6.2",
-          "title": "6.2 OrderPlaced handler: persist PO, status PENDING",
-          "estimate_h": 0.75,
-          "legacy_anchor": "PurchaseOrderMDB, ProcessManagerEJB, ManagerEJB",
-          "acceptance": "Status visible in the admin screen.",
-          "labels": [
-            "slice"
-          ]
-        },
-        {
-          "id": "6.3",
-          "title": "6.3 Approval rule: auto-approve under $500 US / JPY50000 JP",
-          "estimate_h": 0.5,
-          "legacy_anchor": "apps/opc/src/.../opc/ejb/PurchaseOrderMDB.java:183 canIApprove",
-          "acceptance": "Both currencies tested; above threshold parks in PENDING.",
-          "labels": [
-            "slice",
-            "parity"
-          ]
-        },
-        {
-          "id": "6.4",
-          "title": "6.4 Admin approve/deny screen",
-          "estimate_h": 1,
-          "legacy_anchor": "apps/admin/src/client/PetStoreAdminClient.java (Swing) + OPCAdminFacadeEJB (finding #8)",
-          "acceptance": "Replaces the desktop client; drives the demo's decision moment.",
-          "labels": [
-            "slice"
-          ]
-        },
-        {
-          "id": "6.5",
-          "title": "6.5 Supplier: inventory decrement + invoice emission",
-          "estimate_h": 0.75,
-          "legacy_anchor": "SupplierOrderMDB, InventoryEJB, OrderFulfillmentFacadeEJB",
-          "acceptance": "Atomic $inc on Mongo; stock cannot go negative.",
-          "labels": [
-            "slice"
-          ]
-        },
-        {
-          "id": "6.6",
-          "title": "6.6 Invoice fan-out to two listeners + completion when all lines ship",
-          "estimate_h": 0.75,
-          "legacy_anchor": "jms/opc/InvoiceTopic (topic, two subscribers), InvoiceMDB.doWork",
-          "acceptance": "Two independent subscribers observed in a test; partial shipment does not complete the order.",
-          "labels": [
-            "slice",
+            "T1",
             "parity",
-            "cut-candidate"
-          ]
-        },
-        {
-          "id": "6.7",
-          "title": "6.7 Reliability notes: at-least-once, idempotency, promotion path to a broker",
-          "estimate_h": 0.25,
-          "legacy_anchor": "queue durability / redelivery",
-          "acceptance": "Written down in the README known-gaps section.",
-          "labels": [
-            "docs",
-            "risk"
+            "slice"
           ]
         }
       ]
@@ -492,6 +442,7 @@
       "id": "E7",
       "title": "Persistence strategy & MongoDB stretch goal",
       "labels": [
+        "T1",
         "epic",
         "persistence",
         "stretch"
@@ -505,6 +456,7 @@
           "legacy_anchor": "-",
           "acceptance": "Domain imports no Spring Data type.",
           "labels": [
+            "T1",
             "persistence"
           ]
         },
@@ -515,9 +467,10 @@
           "legacy_anchor": "ER model section 6; CMP auto-schema (finding #2)",
           "acceptance": "Written up with the removed join and the removed duplication quantified.",
           "labels": [
+            "T1",
+            "docs",
             "persistence",
-            "stretch",
-            "docs"
+            "stretch"
           ]
         },
         {
@@ -527,6 +480,7 @@
           "legacy_anchor": "CatalogDAOSQL.xml search statements",
           "acceptance": "Query plans checked, not assumed.",
           "labels": [
+            "T1",
             "persistence",
             "stretch"
           ]
@@ -538,9 +492,9 @@
           "legacy_anchor": "-",
           "acceptance": "One command each; results identical. Degrades to Mongo-only if the schedule slips.",
           "labels": [
+            "T1",
             "persistence",
-            "stretch",
-            "cut-candidate"
+            "stretch"
           ]
         },
         {
@@ -550,6 +504,7 @@
           "legacy_anchor": "no authoritative DDL for CMP tables (finding #2)",
           "acceptance": "Mapping rules and how a real engagement would move the data, not a hand-written script.",
           "labels": [
+            "T1",
             "docs",
             "stretch"
           ]
@@ -560,8 +515,9 @@
       "id": "E8",
       "title": "Delivery: README, demo, playback material",
       "labels": [
-        "epic",
-        "docs"
+        "T1",
+        "docs",
+        "epic"
       ],
       "summary": "The brief grades the README and the playback as much as the code.",
       "subs": [
@@ -572,6 +528,7 @@
           "legacy_anchor": "petstore1.3.1_02/docs/installing.html",
           "acceptance": "A developer with Docker + JDK 21 and no context gets the app running. Explicit requirement of the brief.",
           "labels": [
+            "T1",
             "docs"
           ]
         },
@@ -582,16 +539,18 @@
           "legacy_anchor": "docs/01-legacy-architecture.md",
           "acceptance": "Mermaid, same style; side-by-side with the legacy diagrams.",
           "labels": [
+            "T1",
             "docs"
           ]
         },
         {
           "id": "8.3",
-          "title": "8.3 Demo script: golden path -> over-threshold approval -> profile switch",
+          "title": "8.3 Demo script: registration slice -> catalog -> profile switch",
           "estimate_h": 0.5,
           "legacy_anchor": "-",
-          "acceptance": "Rehearsed once, timed under 15 minutes.",
+          "acceptance": "Rehearsed script: register a customer (validation + duplicate rule + BCrypt visible), show the embedded document next to the 4-table CMP graph, browse the catalog, then restart under the jpa profile with the same suite green. Includes the \"what was deferred and why\" slide from ADR-0006.",
           "labels": [
+            "T1",
             "docs"
           ]
         },
@@ -602,6 +561,7 @@
           "legacy_anchor": "-",
           "acceptance": "Answers the brief's third playback bullet directly.",
           "labels": [
+            "T1",
             "docs"
           ]
         },
@@ -612,6 +572,7 @@
           "legacy_anchor": "-",
           "acceptance": "Fresh git clone -> README steps -> running app, with no undocumented step.",
           "labels": [
+            "T1",
             "docs",
             "risk"
           ]
