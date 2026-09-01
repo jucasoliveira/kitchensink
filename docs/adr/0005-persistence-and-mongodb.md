@@ -25,12 +25,22 @@ relationships cannot cross jar boundaries (finding #4).
 5. **The Mongo adapter is written slice by slice, alongside the JPA one — not as a day-4
    afterthought.** Deferring the stretch goal to the end is the reliable way to lose it.
 
+> **Amended by [ADR-0006](0006-deliverable-scope-kitchensink-slice.md).** With the order
+> workflow deferred, the **customer aggregate is the headline document-design example** and the
+> order aggregate below is design-only. The JPA adapter and the profile-switch demo are no
+> longer cut candidates — the freed budget makes both affordable, and the dual-store demo is
+> now a committed deliverable.
+
 ## Document design
 
 - **Catalog:** one `products` document per product with `details` embedded per locale, items
   embedded or referenced. The six-way join in `CatalogDAOSQL.xml` becomes one `findById`. Text
   index on localised name/description replaces the legacy `LIKE`-based search.
-- **Order:** one `orders` document per purchase order, line items / shipTo / billTo / card
+- **Customer (shipped):** one `customers` document per account with `contactInfo`, `address` and
+  `creditCard` embedded — the four-way duplication across `ejb-jar.xml` files (finding #4)
+  collapses into one shape, and the CMP graph's four-table read becomes a single `findById`.
+  This is the migration's clearest "why documents" example.
+- **Order (design only, deferred):** one `orders` document per purchase order, line items / shipTo / billTo / card
   embedded — the aggregate boundary the CMP model could not express, so the four duplicated value
   objects collapse into one embedded shape each.
 - **Inventory** stays a small keyed document (`itemId`, `quantity`) with atomic `$inc` for the
@@ -41,8 +51,8 @@ relationships cannot cross jar boundaries (finding #4).
 - Two persistence models plus mappers ≈ 25–30% extra per slice. Accepted, because the
   profile-switch demo — same test suite, same golden path, both stores — is the highest-value
   thing this project can show a MongoDB panel.
-- **Cut line:** if the schedule slips, the JPA adapter is dropped (Mongo-only) and the decision is
-  recorded here. The reverse — dropping Mongo — is not on the table.
+- **Cut line:** superseded by ADR-0006 — both adapters ship. If T1 itself comes under threat, the
+  JPA adapter is still the first thing to go; dropping Mongo is not on the table.
 - A short note on how a real engagement would move the data (schema analysis → mapping rules →
   Relational Migrator-style transform, not a hand-written script) belongs in the README; the
   seed-data loader in Issue 2.1 is a miniature of exactly that.

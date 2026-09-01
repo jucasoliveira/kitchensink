@@ -1,6 +1,9 @@
 # ADR-0004 — Async order workflow: in-process transactional events
 
-- **Status:** Accepted
+- **Status:** **Deferred, unbuilt** — see [ADR-0006](0006-deliverable-scope-kitchensink-slice.md).
+  The decision below is not reversed; the order workflow is simply out of the delivered scope
+  (tier T3). This ADR is the design that would be implemented on resumption, and the answer to
+  "how would you have done the async part?" in the playback.
 - **Date:** 2026-09-01
 
 ## Context

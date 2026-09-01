@@ -1,16 +1,18 @@
 # ADR-0002 — Migration scope
 
-- **Status:** Accepted
+- **Status:** **SUPERSEDED by [ADR-0006](0006-deliverable-scope-kitchensink-slice.md).**
+  Nothing below is authoritative. Everything still in force — the exclusions, the deliberate
+  deviations, the note on running the legacy app — has been absorbed into ADR-0006, which is now
+  the single place to read for scope.
+
+  Retained deliberately, not archived out of tidiness: this ADR sized the deliverable at ~30h
+  against 28h of capacity. Catching that on day one and re-cutting the scope is the decision
+  trail worth showing, and it is the honest answer to "what would you do differently next time".
 - **Date:** 2026-09-01
 
 ## Context
 
-The brief has an internal contradiction: it points at the **Java Pet Store** repository but then
-says to publish "for just 'kitchensink' only". `kitchensink` is the JBoss quickstart used in the
-other variant of this challenge — `grep -ril kitchensink petstore1.3.1_02` returns nothing. The
-target repository is already named `kitchensink`, so the name is kept; the *content* is Pet Store.
-
-Pet Store is four EARs, 309 `.java` files, 33 EJBs. Migrating all of it in 3.5 days is not
+Pet Store is four EARs, 309 `.java` files, 33 EJBs. Migrating all of it is not
 possible, and pretending otherwise is the single biggest risk to the deliverable.
 
 ## Decision

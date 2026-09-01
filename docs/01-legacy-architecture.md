@@ -381,13 +381,19 @@ six-way join in `CatalogDAOSQL.xml` — relevant to the MongoDB stretch goal.
 
 ---
 
-## 8. Open scope questions
+## 8. Scope questions — resolved
 
-1. **Which app(s) are in scope?** The brief says "for kitchensink only", but this repository
-   contains Pet Store, not the JBoss `kitchensink` quickstart. Migrating all four EARs is a very
-   different exercise from migrating the storefront.
-2. **UI strategy** — keep server-rendered pages (closest to parity, easiest to demo side-by-side)
-   or move to REST + SPA?
-3. **Async workflow** — keep real messaging (embedded broker) or collapse to in-process events?
-   Keeping it is much closer to functional equivalence.
-4. **Admin Swing client** — replace with a web admin screen, or drop?
+Every question this reverse-engineering raised has since been answered in writing. The answers are
+recorded as ADRs so the reasoning survives the decision.
+
+| Question raised here | Answer | Where |
+| --- | --- | --- |
+| **Which app(s) are in scope?** The brief says "for kitchensink only", but this repository contains Pet Store, not the JBoss `kitchensink` quickstart. | Neither all four EARs nor one of them. kitchensink is itself a ~7-file vertical slice chosen for touching every layer, so the Pet Store analogue is the **registration/identity slice** (`signon` + `customer` + `address` + `contactinfo` — 29 of 309 files) plus the catalog read path. | [ADR-0006](adr/0006-deliverable-scope-kitchensink-slice.md) |
+| **UI strategy** — server-rendered, or REST + SPA? | Server-rendered Thymeleaf, *plus* a REST resource (which the legacy has none of). React was costed and deferred until after the migration lands. | [ADR-0003](adr/0003-ui-strategy.md) |
+| **Async workflow** — real messaging or in-process events? | In-process transactional events, with the fan-out preserved via multiple listeners — **and then deferred unbuilt**, because cart/checkout/order fell outside the delivered slice. | [ADR-0004](adr/0004-async-workflow.md), [ADR-0006](adr/0006-deliverable-scope-kitchensink-slice.md) |
+| **Admin Swing client** — replace or drop? | Dropped. It was to become a web approval screen, which went with the deferred order workflow. | [ADR-0006](adr/0006-deliverable-scope-kitchensink-slice.md) |
+
+Two findings above are worth re-reading in that light: **#5** (presentation strategy affects what
+"functional equivalence" can honestly claim) and **#4** (the four-way duplication of `AddressEJB`,
+`ContactInfoEJB`, `CreditCardEJB` and `LineItemEJB`), which is the migration's clearest argument
+for document modelling and lands inside the delivered slice rather than outside it.

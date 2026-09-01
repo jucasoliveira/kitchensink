@@ -1,6 +1,6 @@
 # Running the legacy Pet Store — assessment and plan
 
-> **Scope status: out of scope for the build, per [ADR-0002](adr/0002-migration-scope.md).**
+> **Scope status: out of scope for the build, per [ADR-0006](adr/0006-deliverable-scope-kitchensink-slice.md).**
 > This document is kept because the analysis is load-bearing for the panel — it is the evidence
 > behind that decision, and the "how would you approach an unknown environment" answer. §5 gives
 > a near-zero-cost hedge in case the panel does ask to see the legacy app.

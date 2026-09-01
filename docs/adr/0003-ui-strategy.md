@@ -10,16 +10,16 @@ services through a thin `/api/**` REST layer.
 
 ## Why not a SPA
 
-The brief grades *functional equivalence* and *migration process*, not front-end craft. A React
-SPA would add a second build, a second dependency tree, an auth story and a whole day of work,
-and would make side-by-side screen comparison with the legacy JSPs harder, not easier. As a
+The brief grades *functional equivalence* and *migration process*, not front-end craft. I was considering 
+using a React SPA, but it would add a second build, a second dependency tree, an auth story and a whole day of work,
+and would make side-by-side screen comparison with the legacy JSPs harder, not easier. As mainly a
 JavaScript developer I would be faster in React — which is precisely why choosing it here would be
 optimising for my comfort instead of for the brief.
 
 ## Considered and deferred: React + TanStack hybrid
 
-Evaluated on 2026-09-01 and **deferred until after the migration lands** — React is a post-migration
-enhancement, not part of the 3.5-day scope.
+Evaluated and **deferred until after the migration lands** — React is a post-migration
+enhancement.
 
 | Option | UI work | Java work added | Infra | Net vs plan |
 | --- | --- | --- | --- | --- |
@@ -47,7 +47,7 @@ Reasoning, kept here because it is the likeliest question in the playback:
    SPA loses it, and TanStack Start pays a Node runtime to buy it back.
 5. **At 10× scale the trade flips.** With a team and a six-month horizon, API-first + SPA is right:
    the presentation rewrite parallelizes and the API outlives the front end. It is wrong *here*
-   only because one person over 3.5 days pays the integration cost without collecting the
+   only because one person over 7 days pays the integration cost without collecting the
    parallelism benefit. Knowing why the answer changes with team size is the point.
 
 The `/api/**` facade below is what keeps option B or D cheap **later**: once the application layer
@@ -65,7 +65,10 @@ has no view coupling, the front end is a choice rather than a rewrite.
 | Catalog JSPs calling `CatalogHelper` directly | Catalog controllers → `CatalogService` (the legacy shortcut past the controller is *not* reproduced) |
 
 The REST facade exists to prove the application layer has no view coupling (and it is what a real
-modernisation would expose to a future front end). It is a **cut-line item** — see the plan.
+modernisation would expose to a future front end). Under [ADR-0006](0006-deliverable-scope-kitchensink-slice.md)
+it is **promoted from cut-line item to required**: kitchensink ships a JAX-RS resource, Pet Store
+has none (`grep -rl javax.ws.rs src` → 0 files), and closing that gap is part of being a faithful
+kitchensink equivalent rather than an optional extra.
 
 ## Consequence
 
