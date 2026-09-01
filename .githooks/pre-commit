@@ -1,0 +1,31 @@
+#!/bin/sh
+#
+# pre-commit: purge macOS AppleDouble sidecar files (._*).
+#
+# This repo lives on a non-APFS volume, so Finder/Spotlight scatter ._* files
+# next to the real ones. They are gitignored, but strip them anyway: unstage
+# any that were force-added, then delete them from the working tree.
+# Never blocks the commit.
+
+set -u
+
+root=$(git rev-parse --show-toplevel) || exit 0
+
+# 1. Drop any ._* files that made it into the index.
+staged=$(git ls-files --cached -- '._*' '*/._*')
+if [ -n "$staged" ]; then
+	git ls-files -z --cached -- '._*' '*/._*' |
+		xargs -0 git rm --quiet --cached --ignore-unmatch --
+	echo "pre-commit: unstaged AppleDouble file(s):"
+	echo "$staged" | sed 's/^/  /'
+fi
+
+# 2. Delete them from the working tree (skipping .git itself).
+count=$(find "$root" -path "$root/.git" -prune -o -type f -name '._*' -print | wc -l | tr -d ' ')
+if [ "$count" -gt 0 ]; then
+	find "$root" -path "$root/.git" -prune -o -type f -name '._*' -print0 |
+		xargs -0 rm -f --
+	echo "pre-commit: removed $count AppleDouble file(s) from the working tree"
+fi
+
+exit 0

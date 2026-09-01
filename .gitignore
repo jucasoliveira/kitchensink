@@ -1,6 +1,5 @@
 # Compiled class file
 *.class
-*._*
 petstore1.3.1_02
 # Log file
 *.log
@@ -23,3 +22,7 @@ petstore1.3.1_02
 # virtual machine crash logs, see http://www.java.com/en/download/help/error_hotspot.xml
 hs_err_pid*
 replay_pid*
+
+# macOS AppleDouble / metadata (this repo lives on a non-APFS volume)
+._*
+.DS_Store
