@@ -26,3 +26,10 @@ replay_pid*
 # macOS AppleDouble / metadata (this repo lives on a non-APFS volume)
 ._*
 .DS_Store
+
+# Spring boot scafolding 
+target/
+.mvn/wrapper/maven-wrapper.jar
+.idea
+*.iml
+.vscode/
