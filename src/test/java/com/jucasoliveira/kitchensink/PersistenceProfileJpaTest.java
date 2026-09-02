@@ -4,6 +4,7 @@ import java.sql.Connection;
 
 import javax.sql.DataSource;
 
+import com.jucasoliveira.kitchensink.customer.application.CustomerRepository;
 import com.mongodb.client.MongoClient;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -69,6 +70,17 @@ class PersistenceProfileJpaTest {
 		// The 1.1 spike repository extends MongoRepository, so it must go too — and the
 		// controller that injects it is @Profile("mongo") for exactly that reason.
 		assertThat(this.context.getBeanNamesForType(MemberRepository.class)).isEmpty();
+	}
+
+	@Test
+	@DisplayName("the customer port has no adapter under jpa yet — the 4.6 gap, written down")
+	void the_customer_port_has_no_adapter_yet() {
+		// Issue 1.7 wrote the Mongo adapter only; 4.6 writes the JPA one. Until then the customer
+		// port has no implementation under jpa, and nothing in src/main may inject it without a
+		// @Profile("mongo") guard or this context stops starting. AGENTS.md §5: "both persistence
+		// profiles stay green, or the gap is written down" — this is where it is written. When
+		// 4.6 lands, this flips to hasSize(1) and moves next to its mongo twin.
+		assertThat(this.context.getBeanNamesForType(CustomerRepository.class)).isEmpty();
 	}
 
 	@Test
