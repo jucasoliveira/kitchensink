@@ -4,10 +4,8 @@ import java.io.IOException;
 import java.io.Reader;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
-import java.util.Properties;
 import java.util.stream.Collectors;
 
 import com.mongodb.ConnectionString;
@@ -34,16 +32,19 @@ import static org.assertj.core.api.Assertions.assertThat;
  * run different server versions. These assertions are the seam: they are the only thing that ties
  * the file a developer runs to the configuration the application boots with.
  *
+ * <p>Since issue 1.5 that configuration is the {@code mongo} document of {@code application.yaml}
+ * (read through {@link ApplicationYaml}), and the URI carries an environment override. What is
+ * compared here is the default — the value a clean clone boots with — because that is the one
+ * {@code compose.yaml} has to match. The shape of the file itself is {@link ProfileConfigurationTest}'s.
+ *
  * <p>No Spring context and no Docker daemon — this reads the files as text, so it costs
  * milliseconds and fails on a laptop with Docker Desktop shut down.
  */
 class ComposeConsistencyTest {
 
-	private static final Path ROOT = projectRoot();
-
 	private static final Map<String, Object> COMPOSE = compose();
 
-	private static final Properties APPLICATION = application();
+	private static final ApplicationYaml MONGO_PROFILE = ApplicationYaml.profile("mongo");
 
 	@Test
 	@DisplayName("MongoDB is the only service: issue 1.3's 'optional Postgres' was dropped, deliberately")
@@ -76,15 +77,6 @@ class ComposeConsistencyTest {
 	}
 
 	@Test
-	@DisplayName("the Boot 3 property spelling is not used: it is an error-level deprecation in Boot 4")
-	void the_driver_properties_use_the_boot_4_namespace() {
-		// spring.data.mongodb.* moved to spring.mongodb.* in Boot 4.0.0 with deprecation level
-		// "error" — the binder rejects the old spelling rather than warning about it.
-		assertThat(APPLICATION.stringPropertyNames()).noneMatch(name -> name.startsWith("spring.data.mongodb."))
-			.contains("spring.mongodb.uri");
-	}
-
-	@Test
 	@DisplayName("compose runs a replica set, because the tests do and @Transactional needs one")
 	void compose_runs_a_single_node_replica_set() {
 		// TestcontainersConfiguration calls withReplicaSet(). A bare mongod locally would pass
@@ -105,8 +97,8 @@ class ComposeConsistencyTest {
 	}
 
 	private static ConnectionString uri() {
-		String value = APPLICATION.getProperty("spring.mongodb.uri");
-		assertThat(value).as("spring.mongodb.uri in src/main/resources/application.properties").isNotNull();
+		String value = MONGO_PROFILE.value("spring.mongodb.uri");
+		assertThat(value).as("spring.mongodb.uri in the mongo document of application.yaml").isNotNull();
 		return new ConnectionString(value);
 	}
 
@@ -135,40 +127,12 @@ class ComposeConsistencyTest {
 	}
 
 	private static Map<String, Object> compose() {
-		try (Reader reader = Files.newBufferedReader(ROOT.resolve("compose.yaml"))) {
+		try (Reader reader = Files.newBufferedReader(ApplicationYaml.PROJECT_ROOT.resolve("compose.yaml"))) {
 			return map(new Yaml().load(reader));
 		}
 		catch (IOException ex) {
 			throw new UncheckedIOException(ex);
 		}
-	}
-
-	private static Properties application() {
-		Properties properties = new Properties();
-		try (Reader reader = Files.newBufferedReader(ROOT.resolve("src/main/resources/application.properties"))) {
-			properties.load(reader);
-			return properties;
-		}
-		catch (IOException ex) {
-			throw new UncheckedIOException(ex);
-		}
-	}
-
-	/**
-	 * Walks up from the working directory rather than trusting it. Surefire runs from the project
-	 * basedir, but this project moves {@code build.directory} off the volume it lives on, and a
-	 * test that reads repository files should not be the thing that quietly breaks next time
-	 * something like that changes.
-	 */
-	private static Path projectRoot() {
-		Path directory = Path.of("").toAbsolutePath();
-		while (directory != null && !Files.exists(directory.resolve("compose.yaml"))) {
-			directory = directory.getParent();
-		}
-		if (directory == null) {
-			throw new IllegalStateException("no compose.yaml above " + Path.of("").toAbsolutePath());
-		}
-		return directory;
 	}
 
 	/** Compose accepts both list and scalar forms; flatten to one string and match on it. */

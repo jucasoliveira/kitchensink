@@ -1,10 +1,12 @@
 package com.jucasoliveira.kitchensink;
 
+import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 
 @Controller
+@Profile("mongo")
 public class HomeController {
     private final MemberRepository members;
 
