@@ -4,7 +4,8 @@ A migration of Sun's 2003 Java Pet Store (4 EARs, 33 EJBs) to Spring Boot 4.1.1 
 delivered as a vertical slice with MongoDB as the primary store and a JPA/H2 store behind the
 same ports. What is in scope, and why, is [ADR-0006](docs/adr/0006-deliverable-scope-kitchensink-slice.md);
 the rest of the paper trail is indexed in [docs/README.md](docs/README.md). The working agreement
-for anyone (or anything) contributing is [AGENTS.md](AGENTS.md).
+for anyone (or anything) contributing is [AGENTS.md](AGENTS.md); the branch, commit and PR
+mechanics are in [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Running it
 
