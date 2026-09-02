@@ -2,6 +2,9 @@
 
 Working documentation for the Pet Store modernisation take-home.
 
+**Build and run steps:** [`README.md`](../README.md) at the repository root — prerequisites, the
+`mongo`/`jpa` persistence profiles, and how to run the tests.
+
 **Working agreement:** [`AGENTS.md`](../AGENTS.md) at the repository root — who writes what,
 and the standing instruction that an AI assistant writes into the codebase only when asked.
 
