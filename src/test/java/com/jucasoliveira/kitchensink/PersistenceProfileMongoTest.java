@@ -2,9 +2,11 @@ package com.jucasoliveira.kitchensink;
 
 import javax.sql.DataSource;
 
+import com.jucasoliveira.kitchensink.customer.application.CustomerRepository;
 import com.mongodb.client.MongoClient;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.aop.framework.AopProxyUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
@@ -60,6 +62,17 @@ class PersistenceProfileMongoTest {
 		// The 1.1 spike repository is the only MongoRepository so far; E4 replaces it with the
 		// customer adapter, at which point this line changes with it.
 		assertThat(this.context.getBeanNamesForType(MemberRepository.class)).hasSize(1);
+	}
+
+	@Test
+	@DisplayName("the customer port has exactly one adapter, and under mongo it is the Mongo one")
+	void the_customer_port_is_bound_to_the_mongo_adapter() {
+		// Issue 1.7. The port is an interface in the application layer (LayeringRulesTest); which
+		// implementation it resolves to is a profile decision, and this is the mongo half of it.
+		// Unwrapped in case @Repository's exception-translation proxy sits in front of the bean.
+		assertThat(this.context.getBeanNamesForType(CustomerRepository.class)).hasSize(1);
+		Class<?> adapter = AopProxyUtils.ultimateTargetClass(this.context.getBean(CustomerRepository.class));
+		assertThat(adapter.getPackageName()).isEqualTo("com.jucasoliveira.kitchensink.customer.adapter.persistence.mongo");
 	}
 
 	@Test
