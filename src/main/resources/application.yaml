@@ -1,0 +1,33 @@
+spring:
+  application:
+    name: kitchensink
+  profiles:
+    default: mongo
+management:
+  endpoint:
+    health:
+      show-components: always
+---
+spring:
+  config:
+    activate:
+      on-profile: mongo
+  mongodb:
+    uri: ${MONGODB_URI:mongodb://localhost:27017/kitchensink}
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.jdbc.autoconfigure.DataSourceAutoConfiguration
+---
+spring:
+  config:
+    activate:
+      on-profile: jpa
+  datasource:
+    url: ${JDBC_URL:jdbc:h2:mem:kitchensink;DB_CLOSE_DELAY=-1}
+  jpa:
+    open-in-view: false
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.mongodb.autoconfigure.MongoAutoConfiguration
+      - org.springframework.boot.data.mongodb.autoconfigure.DataMongoAutoConfiguration
+      - org.springframework.boot.data.mongodb.autoconfigure.DataMongoRepositoriesAutoConfiguration
