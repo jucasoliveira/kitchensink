@@ -31,7 +31,7 @@ becomes the traceability matrix.
 | # | Sub-issue | Est | Legacy anchor | Acceptance |
 | --- | --- | --- | --- | --- |
 | 1.1 | **Skeleton spike:** Boot 4.1.1 + Java 21 with web, security, thymeleaf, data-mongodb, events | 1h | — | App boots, one page renders, one document round-trips. **Timebox 90 min**, then fall back to 3.5.x and amend ADR-0001 |
-| 1.2 | Package/module layout per bounded context (`catalog`, `cart`, `customer`, `order`, `opc`, `supplier`, `admin`, shared `domain`/`application`) | 0.5h | the four EARs | Packages exist; ArchUnit test asserts the dependency rules (even before there is code) |
+| 1.2 | Package/module layout per bounded context, `domain` / `application` / `adapter.{web,persistence.{mongo,jpa}}` inside each. **Built:** `customer` (T1), `catalog` (T2), `shared`. The five T3 contexts (`cart`, `order`, `opc`, `supplier`, `admin`) are named in the rule set but get no packages — ADR-0006 defers them unbuilt, and `deferred_contexts_stay_unbuilt` fails the build if one appears | 0.5h | the four EARs | Packages exist; ArchUnit test asserts the dependency rules (even before there is code) |
 | 1.3 | `compose.yaml` (MongoDB, optional Postgres) + run scripts | 0.5h | `setup.xml` `create_*_db` | `docker compose up` then `mvn spring-boot:run` works from a clean clone |
 | 1.4 | GitHub Actions: build, test, ArchUnit, JaCoCo, parity job | 1h | `build.xml` / Ant 1.x | PR checks required on `main` |
 | 1.5 | Config profiles `mongo`/`jpa`, externalised config, Actuator health | 0.5h | `sun-j2ee-ri.xml` JNDI wiring, `JNDINames.java` | `--spring.profiles.active=jpa` switches the store with no code change |
