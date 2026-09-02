@@ -1,0 +1,131 @@
+# Issue 1.4 - the quality gates, as CI.
+#
+# The legacy equivalent is build.xml and its vendored Ant 1.x: a build that compiled and packaged
+# four EARs and ran no tests at all (`grep -rl junit petstore1.3.1_02` returns nothing). Everything
+# below is therefore new ground rather than a port - what is being preserved is the *behaviour*
+# the parity job pins, not the build that produced it.
+#
+# Two required checks, deliberately:
+#   build  - compile, unit + slice tests (Testcontainers), the ArchUnit rule set, the JaCoCo floor
+#   parity - the @Tag("parity") characterization tests from E2
+# docs/03-migration-plan.md §5 asks for that split so "a parity break is visibly different from a
+# unit-test break". A parity failure means the migration changed what Pet Store did; a build
+# failure means the new code is broken. Different severities, different red checks.
+#
+# ArchUnit is a gate here, not a job: BoundedContextRulesTest and LayeringRulesTest are ordinary
+# JUnit tests and run inside `build`. A third job would buy ~40s of earlier feedback for a second
+# cold dependency resolve and a second compile on every PR.
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# Least privilege: nothing here writes to the repository.
+permissions:
+  contents: read
+
+# A new push supersedes the run it interrupted.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# NOTE: no `paths:` filter, on purpose. A required check that a path filter skips never reports,
+# and the pull request waits on it forever. These jobs are cheap enough to always run.
+
+jobs:
+  build:
+    name: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+
+      # setup-java's `cache: maven` covers ~/.m2/repository only. The wrapper is
+      # distributionType=only-script (.mvn/wrapper/maven-wrapper.properties), so without this it
+      # re-downloads the Maven 3.9.16 distribution into ~/.m2/wrapper on every cold job.
+      - name: Cache the Maven distribution the wrapper downloads
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2/wrapper
+          key: maven-wrapper-${{ hashFiles('.mvn/wrapper/maven-wrapper.properties') }}
+
+      # pom.xml moves the build directory off-volume by default (${java.io.tmpdir}), because on
+      # the non-APFS disk this repo lives on, macOS scatters AppleDouble sidecars through
+      # target/test-classes and Surefire then tries to run one: "Unable to create test class
+      # 'architecture.._BoundedContextRulesTest'". That is a macOS-only problem, so CI points the
+      # directory back at the workspace - actions/upload-artifact cannot reach /tmp, and without
+      # this override every report below is written somewhere unreachable and the upload finds
+      # nothing. Verified: `-Dkitchensink.build.directory=...` does move it (help:evaluate).
+      #
+      # Testcontainers needs no setup - ubuntu-latest ships a running Docker daemon, and
+      # TestcontainersConfiguration starts its own mongo:7.0. Do not add a `services:` block;
+      # a second Mongo would only fight this one for port 27017.
+      - name: verify (tests, ArchUnit, JaCoCo)
+        run: >
+          ./mvnw -B -ntp verify
+          -Dkitchensink.build.directory=${{ github.workspace }}/target
+          -DexcludedGroups=parity
+
+      - name: Upload reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-reports
+          path: |
+            target/surefire-reports/
+            target/site/jacoco/
+          retention-days: 7
+
+  parity:
+    name: parity
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+
+      - name: Cache the Maven distribution the wrapper downloads
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2/wrapper
+          key: maven-wrapper-${{ hashFiles('.mvn/wrapper/maven-wrapper.properties') }}
+
+      # `test`, not `verify`: the parity tests run under Surefire, and there is no reason to
+      # repackage the fat jar a second time per pull request.
+      #
+      # -DfailIfNoTests=false is scaffolding. Issue 2.2 (#7) has not written the parity tests yet,
+      # so the tag currently matches nothing, which Surefire otherwise treats as a failure. REMOVE
+      # IT once 2.2 has landed - after that, "the parity job ran no tests" must be an error again.
+      #
+      # -Djacoco.skip=true because the coverage floor is the build job's gate. Running it here on a
+      # parity-only subset would report a second, lower, meaningless number.
+      - name: parity characterization tests
+        run: >
+          ./mvnw -B -ntp test
+          -Dgroups=parity
+          -DfailIfNoTests=false
+          -Djacoco.skip=true
+          -Dkitchensink.build.directory=${{ github.workspace }}/target
+
+      - name: Upload reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: parity-reports
+          path: target/surefire-reports/
+          retention-days: 7
