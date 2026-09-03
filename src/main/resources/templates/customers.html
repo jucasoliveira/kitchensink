@@ -1,0 +1,25 @@
+<form th:action="@{/customers}" th:object="${command}" method="post">
+     <ul th:if="${#fields.hasErrors('*')}">
+        <li th:each="e : ${#fields.detailedErrors()}" th:text="${e.fieldName + ': ' + e.message}"></li>
+    </ul>
+    <input th:field="*{userId}"/>
+    <input type="password" th:field="*{password}"/>
+    <input th:field="*{contactInfo.givenName}"/>
+    <input th:field="*{contactInfo.familyName}"/>
+    <input th:field="*{contactInfo.telephone}"/>
+    <input th:field="*{contactInfo.email}"/>
+    <input th:field="*{contactInfo.address.streetName1}"/>
+    <input th:field="*{contactInfo.address.streetName2}"/>
+    <input th:field="*{contactInfo.address.city}"/>
+    <input th:field="*{contactInfo.address.state}"/>
+    <input th:field="*{contactInfo.address.zipCode}"/>
+    <input th:field="*{contactInfo.address.country}"/>
+    <button type="submit">Register</button>
+</form>
+<table>
+    <tr th:each="c : ${customers}">
+        <td th:text="${c.userId()}"></td>
+        <td th:text="${c.account().contactInfo().givenName() + ' ' + c.account().contactInfo().familyName()}"></td>
+        <td th:text="${c.account().contactInfo().address().city()}"></td>
+    </tr>
+</table>

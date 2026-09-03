@@ -92,6 +92,20 @@ class CustomerMongoRoundTripTest {
 	}
 
 	@Test
+	@DisplayName("Issue 1.9 — findAll returns every registered customer, whole, and nothing on an empty store")
+	void find_all_returns_every_customer() {
+		// The legacy had no finder for this: CustomerEJB's home declares only findByPrimaryKey
+		// (customer/src/ejb-jar.xml) and customer.screen showed one account. The list is the
+		// kitchensink twin's table, and the port grows the one method the screen needs.
+		assertThat(this.customers.findAll()).isEmpty();
+
+		Customer ada = this.customers.save(Customer.register("ada", HASH, contact()));
+		Customer grace = this.customers.save(Customer.register("grace", HASH, contact()));
+
+		assertThat(this.customers.findAll()).containsExactlyInAnyOrder(ada, grace);
+	}
+
+	@Test
 	@DisplayName("the four-bean CMP graph is stored as ONE document in ONE collection")
 	void the_cmp_graph_is_one_document() {
 		this.customers.save(Customer.register("ada", HASH, contact()));

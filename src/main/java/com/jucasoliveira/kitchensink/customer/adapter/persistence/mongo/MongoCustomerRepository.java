@@ -2,6 +2,8 @@ package com.jucasoliveira.kitchensink.customer.adapter.persistence.mongo;
 
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
+
+import java.util.List;
 import java.util.Optional;
 import com.jucasoliveira.kitchensink.customer.application.CustomerRepository;
 import com.jucasoliveira.kitchensink.customer.domain.Customer;
@@ -23,5 +25,10 @@ class MongoCustomerRepository implements CustomerRepository {
     @Override
     public Optional<Customer> findByUserId(String userId) {
         return documents.findById(userId).map(CustomerDocument::toDomain);
+    }
+
+    @Override
+    public List<Customer> findAll() {
+        return documents.findAll().stream().map(CustomerDocument::toDomain).toList();
     }
 }

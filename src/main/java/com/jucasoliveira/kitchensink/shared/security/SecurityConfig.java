@@ -13,8 +13,10 @@ public class SecurityConfig {
     @Bean
     SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         return http
+                .csrf(csrf -> csrf.ignoringRequestMatchers("/api/**"))
                 .authorizeHttpRequests(
-                        a -> a.requestMatchers("/", "/actuator/health").permitAll().anyRequest().authenticated())
+                        a -> a.requestMatchers("/", "/actuator/health", "/customers", "/api/customers").permitAll()
+                                .anyRequest().authenticated())
                 .formLogin(Customizer.withDefaults()).build();
     }
 

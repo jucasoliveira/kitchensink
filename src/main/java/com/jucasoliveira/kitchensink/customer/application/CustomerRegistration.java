@@ -1,5 +1,7 @@
 package com.jucasoliveira.kitchensink.customer.application;
 
+import java.util.List;
+
 import org.springframework.context.annotation.Profile;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -25,5 +27,9 @@ public class CustomerRegistration {
     public Customer register(@Valid RegisterCustomerCommand command) {
         PasswordHash hash = new PasswordHash(encoder.encode(command.password()));
         return customers.save(Customer.register(command.userId(), hash, command.contactInfo()));
+    }
+
+    public List<Customer> registered() {
+        return customers.findAll();
     }
 }
