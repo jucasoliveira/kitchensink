@@ -1,6 +1,7 @@
 package com.jucasoliveira.kitchensink.customer.domain;
 
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
@@ -10,6 +11,9 @@ import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException
 
 /**
  * Issue 1.8 — the one deliberate deviation from parity, made unrepresentable.
+ *
+ * <p>Issue 2.2 — tagged {@code parity}: this is the BCrypt-deviation half of the in-scope
+ * business rules, pinned at the type level rather than through the HTTP round trip.
  *
  * <p>Legacy: {@code UserEJB} keeps the password as a CMP {@code String} field and compares it with
  * {@code password.equals(getPassword())} ({@code signon/.../user/ejb/UserEJB.java:88}) — finding #1
@@ -21,6 +25,7 @@ import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException
  * <p>Pure Java. The domain does not know Spring Security exists (LayeringRulesTest); the hashing
  * happens one layer out, in {@code CustomerRegistration}, and only the result crosses this line.
  */
+@Tag("parity")
 class PasswordHashTest {
 
 	/** {@code $2a$10$} + 22 chars of salt + 31 chars of digest: the modular-crypt BCrypt form. */

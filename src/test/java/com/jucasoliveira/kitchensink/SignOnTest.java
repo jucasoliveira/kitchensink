@@ -8,6 +8,7 @@ import jakarta.validation.ConstraintViolationException;
 import org.bson.Document;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -49,7 +50,12 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * <p>Boots the real context under the default ({@code mongo}) profile, as the round-trip test
  * does, because the point is that the chain, the user lookup, the hashing and the store are the
  * <em>production</em> wiring — nothing here is stubbed.
+ *
+ * <p>Issue 2.2 — tagged {@code parity}: this class is the sign-on success/failure half of the
+ * in-scope business rules, and the last two tests below also carry the BCrypt deviation (finding
+ * #1) that the plaintext {@code UserEJB.matchPassword} equality could never have shown.
  */
+@Tag("parity")
 @SpringBootTest
 @AutoConfigureMockMvc
 @Import(TestcontainersConfiguration.class)

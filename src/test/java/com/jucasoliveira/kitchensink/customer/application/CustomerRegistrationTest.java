@@ -10,11 +10,13 @@ import com.jucasoliveira.kitchensink.customer.domain.Address;
 import com.jucasoliveira.kitchensink.customer.domain.ContactInfo;
 import com.jucasoliveira.kitchensink.customer.domain.Customer;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * Issue 1.8 — registration stores a hash, never the password.
@@ -29,7 +31,14 @@ import static org.assertj.core.api.Assertions.assertThat;
  * of the application layer's rule, and the store is not part of the rule. The encoder is the real
  * BCrypt one at its cheapest cost factor, because a fake encoder would prove nothing about the
  * property under test.
+ *
+ * <p>Issue 2.2 — tagged {@code parity}: the BCrypt tests above pin the hashing deviation, and
+ * {@link #a_duplicate_user_id_is_rejected_not_silently_overwritten()} pins the duplicate-account
+ * rule. That one is expected to be <strong>red</strong> until Issue 4.4 (#25) adds the rejection —
+ * {@link CustomerRegistration#register} does not check for an existing user id yet, so today it
+ * silently overwrites the first account instead of throwing.
  */
+@Tag("parity")
 class CustomerRegistrationTest {
 
 	static final Address ADDRESS = new Address("1 Main St", null, "London", "LDN", "N1 1AA", "GB");
@@ -77,6 +86,28 @@ class CustomerRegistrationTest {
 		assertThat(registered.account().status()).isEqualTo(AccountStatus.ACTIVE);
 		assertThat(registered.account().contactInfo()).isEqualTo(CONTACT);
 		assertThat(registered).isEqualTo(this.customers.findByUserId("ada").orElseThrow());
+	}
+
+	@Test
+	@DisplayName("CreateUserEJBAction.java:89-100 — a second registration with an existing user id is rejected, not silently overwritten")
+	void a_duplicate_user_id_is_rejected_not_silently_overwritten() {
+		// Legacy: SignOnEJB.createUser is a CMP entity create keyed on userName
+		// (signon/.../ejb/SignOnEJB.java:80-82); a second create with the same primary key throws
+		// javax.ejb.DuplicateKeyException, which CreateUserEJBAction.java:99-100 catches and
+		// rethrows as DuplicateAccountException("Bad UserName or password") — routed to
+		// duplicate_account.screen rather than replacing the first account.
+		this.registration.register(new RegisterCustomerCommand("ada", "s3cret", CONTACT));
+
+		ContactInfo impostor = new ContactInfo("Not", "Ada", "029 2018 0000", "impostor@example.com", ADDRESS);
+		assertThatThrownBy(
+				() -> this.registration.register(new RegisterCustomerCommand("ada", "different-password", impostor)))
+			.isInstanceOf(RuntimeException.class);
+
+		// The original account survives untouched: still Ada's contact info, still the first password.
+		Customer stillAda = this.customers.findByUserId("ada").orElseThrow();
+		assertThat(stillAda.account().contactInfo()).isEqualTo(CONTACT);
+		assertThat(this.encoder.matches("s3cret", stillAda.passwordHash().value())).isTrue();
+		assertThat(this.customers.findAll()).hasSize(1);
 	}
 
 	/** The port, in a map. Enough to prove the rule; the adapters have their own tests. */
