@@ -90,6 +90,7 @@ Everything below is in `docs/`. Read in this order when picking the work up cold
 | [docs/03-migration-plan.md](docs/03-migration-plan.md) | The method (inventory → seams → decide → characterize → slice → gate), the 7-half-day schedule, definition of done, quality gates, risk register | Second. Answers "how, and in what order?" |
 | [docs/01-legacy-architecture.md](docs/01-legacy-architecture.md) | Reverse-engineered Pet Store: deployment view, the WAF request flow, 33-EJB inventory, async workflow, data model, 11 findings — every claim anchored to `file:line` | Whenever you need to know what the legacy actually did |
 | [docs/04-work-breakdown.md](docs/04-work-breakdown.md) | 6 epics / 38 sub-issues in two tiers, each with a legacy anchor, acceptance criteria and an estimate | When picking up the next task |
+| [docs/05-test-harness.md](docs/05-test-harness.md) | The quality gates, proven: what each one checks, the green CI runs, and a drill per gate showing what red looks like | When a gate goes red and you need to know whether it is the code or the harness |
 | [docs/02-running-the-legacy-app.md](docs/02-running-the-legacy-app.md) | Why the 2003 stack will not run on modern hardware, options considered, and the hedge | Only if the panel asks to see the legacy app |
 | [docs/README.md](docs/README.md) | Index and decision table | As a jumping-off point |
 | `legacy-runtime/` | Container scaffold that would run the unmodified 2003 app; out of scope, kept as a costless hedge | Only with §5 of doc 02 |
