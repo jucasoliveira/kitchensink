@@ -1,6 +1,7 @@
 package com.jucasoliveira.kitchensink.customer.application;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
@@ -92,6 +93,11 @@ class CustomerRegistrationTest {
 		@Override
 		public Optional<Customer> findByUserId(String userId) {
 			return Optional.ofNullable(this.byUserId.get(userId));
+		}
+
+		@Override
+		public List<Customer> findAll() {
+			return List.copyOf(this.byUserId.values());
 		}
 
 	}

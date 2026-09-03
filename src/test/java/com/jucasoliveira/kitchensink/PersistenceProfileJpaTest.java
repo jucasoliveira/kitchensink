@@ -1,6 +1,8 @@
 package com.jucasoliveira.kitchensink;
 
 import java.sql.Connection;
+import java.util.Arrays;
+import java.util.Objects;
 
 import javax.sql.DataSource;
 
@@ -95,6 +97,19 @@ class PersistenceProfileJpaTest {
 		assertThat(this.context.getBeanNamesForType(CustomerRegistration.class)).isEmpty();
 		assertThat(this.context.getBeansOfType(UserDetailsService.class).values())
 			.noneMatch(service -> service.getClass().getPackageName().startsWith("com.jucasoliveira.kitchensink.customer"));
+	}
+
+	@Test
+	@DisplayName("the 1.9 screens and resource are absent under jpa too — the 4.6 gap, one layer up")
+	void the_customer_web_adapter_is_absent_too() {
+		// The controller and the REST resource inject CustomerRegistration, which is not here
+		// (previous test), so they carry the same @Profile("mongo") guard or this context fails
+		// to start. Same lifetime as the guard on the service: 4.6 removes all of them together.
+		assertThat(Arrays.stream(this.context.getBeanDefinitionNames())
+			.map(this.context::getType)
+			.filter(Objects::nonNull)
+			.map(Class::getPackageName))
+			.noneMatch(pkg -> pkg.startsWith("com.jucasoliveira.kitchensink.customer.adapter.web"));
 	}
 
 	@Test
