@@ -28,7 +28,7 @@
 	</scm>
 	<properties>
 		<java.version>21</java.version>
-		<kitchensink.build.directory>${java.io.tmpdir}/kitchensink-target</kitchensink.build.directory>
+		<kitchensink.build.directory>${java.io.tmpdir}/kitchensink/target</kitchensink.build.directory>
 	</properties>
 	<dependencies>
 		<dependency>

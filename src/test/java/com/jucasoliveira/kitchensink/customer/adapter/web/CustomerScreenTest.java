@@ -106,7 +106,7 @@ class CustomerScreenTest {
 	void a_missing_field_is_reported_on_the_form() throws Exception {
 		// Legacy: missingFields.add("Last Name") → MissingFormDataException → same screen again.
 		// Here the same rule is @NotBlank on ContactInfo.familyName, reported by BindingResult.
-		this.mvc.perform(registration("ada").param("contactInfo.familyName", "").with(csrf()))
+		this.mvc.perform(registration("ada", "").with(csrf()))
 			.andExpect(status().isOk())
 			.andExpect(content().string(containsString("must not be blank")))
 			// The re-rendered form keeps what was typed — except the password, which a password
@@ -142,11 +142,19 @@ class CustomerScreenTest {
 
 	/** One parameter per input of {@code create_customer.jsp}, minus credit card and profile (T3 / 4.5). */
 	static MockHttpServletRequestBuilder registration(String userId) {
+		return registration(userId, "Lovelace");
+	}
+
+	/**
+	 * {@code param()} appends rather than replaces — a second value for the same name binds as
+	 * "Lovelace," and is not blank — so the one field the tests vary is a parameter, not an override.
+	 */
+	static MockHttpServletRequestBuilder registration(String userId, String familyName) {
 		return post("/customers").contentType(MediaType.APPLICATION_FORM_URLENCODED)
 			.param("userId", userId)
 			.param("password", PASSWORD)
 			.param("contactInfo.givenName", "Ada")
-			.param("contactInfo.familyName", "Lovelace")
+			.param("contactInfo.familyName", familyName)
 			.param("contactInfo.telephone", "020 7946 0000")
 			.param("contactInfo.email", "ada@example.com")
 			.param("contactInfo.address.streetName1", "1 Main St")

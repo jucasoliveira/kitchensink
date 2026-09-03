@@ -1,7 +1,7 @@
-<ul th:if="${#fields.hasErrors('*')}">
-    <li th:each="e : ${#fields.detailedErrors()}" th:text="${e.fieldName + ': ' + e.message}"></li>
-</ul>
 <form th:action="@{/customers}" th:object="${command}" method="post">
+     <ul th:if="${#fields.hasErrors('*')}">
+        <li th:each="e : ${#fields.detailedErrors()}" th:text="${e.fieldName + ': ' + e.message}"></li>
+    </ul>
     <input th:field="*{userId}"/>
     <input type="password" th:field="*{password}"/>
     <input th:field="*{contactInfo.givenName}"/>

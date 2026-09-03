@@ -1,5 +1,7 @@
 package com.jucasoliveira.kitchensink.customer.adapter.web;
 
+import java.util.List;
+
 import org.springframework.context.annotation.Profile;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -13,6 +15,7 @@ import com.jucasoliveira.kitchensink.customer.application.RegisterCustomerComman
 
 import jakarta.validation.Valid;
 
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 
@@ -30,6 +33,11 @@ public class CustomerResource {
     @ResponseStatus(HttpStatus.CREATED)
     CustomerResponse register(@Valid @RequestBody RegisterCustomerCommand command) {
         return CustomerResponse.from(registration.register(command));
+    }
+
+    @GetMapping
+    List<CustomerResponse> list() {
+        return registration.registered().stream().map(CustomerResponse::from).toList();
     }
 
 }
