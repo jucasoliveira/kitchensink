@@ -16,8 +16,24 @@ scripts/dev-up.sh      # docker compose up -d --wait: a single-node MongoDB 7.0 
 scripts/run.sh         # ./mvnw spring-boot:run
 ```
 
-Then open <http://localhost:8080>. Health is at <http://localhost:8080/actuator/health> and is
-the one URL the security chain leaves open, so it works from a browser with no login.
+Then open <http://localhost:8080>. Health is at <http://localhost:8080/actuator/health>; it and
+the home page are the URLs the security chain leaves open, so both work from a browser with no
+login. Everything else redirects to `/login`.
+
+### Sign-on and passwords — the one deliberate deviation from parity
+
+The legacy sign-on was a hand-written servlet filter (`components/signon/.../web/SignOnFilter.java`,
+finding #3 in [docs/01-legacy-architecture.md](docs/01-legacy-architecture.md)) in front of a
+`UserEJB` that stored the password as typed and checked it with `password.equals(getPassword())`
+(`UserEJB.java:88`, finding #1). The filter maps onto a Spring Security filter chain
+(`shared/security/SecurityConfig`) with a `UserDetailsService` over the customer aggregate. The
+plaintext comparison does **not** map onto anything: passwords are BCrypt-hashed at registration
+and only the hash is stored, and the domain type that holds it (`customer/domain/PasswordHash`)
+refuses any value that is not a BCrypt hash, so no plaintext credential path exists anywhere in
+this repository's history. Everything else in the slice aims at strict parity; this is the one
+place it is deliberately broken, and [ADR-0006](docs/adr/0006-deliverable-scope-kitchensink-slice.md)
+lists it as such. The tests that pin it are `PasswordHashTest`, `CustomerRegistrationTest` and
+`SignOnTest`.
 
 ```bash
 scripts/dev-down.sh            # stop the container, keep the data

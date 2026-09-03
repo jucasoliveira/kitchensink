@@ -7,6 +7,7 @@ import com.jucasoliveira.kitchensink.customer.application.CustomerRepository;
 import com.jucasoliveira.kitchensink.customer.domain.Address;
 import com.jucasoliveira.kitchensink.customer.domain.ContactInfo;
 import com.jucasoliveira.kitchensink.customer.domain.Customer;
+import com.jucasoliveira.kitchensink.customer.domain.PasswordHash;
 import org.bson.Document;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -41,6 +42,14 @@ class CustomerMongoRoundTripTest {
 	/** ADR-0005 "Document design": one {@code customers} document per account. */
 	static final String COLLECTION = "customers";
 
+	/**
+	 * Issue 1.8 folds the legacy {@code UserEJB} (userName, password — a separate entity joined to
+	 * {@code CustomerEJB} on {@code userId = userName}, {@code 01-legacy-architecture.md} §4) into
+	 * the same document as a BCrypt hash. Any well-formed hash will do here; what is under test is
+	 * that it round-trips, not that it matches anything.
+	 */
+	static final PasswordHash HASH = new PasswordHash("$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy");
+
 	@Autowired
 	CustomerRepository customers;
 
@@ -65,7 +74,7 @@ class CustomerMongoRoundTripTest {
 	@Test
 	@DisplayName("a registered customer reads back equal, nested values included")
 	void a_registered_customer_round_trips() {
-		Customer registered = Customer.register("ada", contact());
+		Customer registered = Customer.register("ada", HASH, contact());
 
 		this.customers.save(registered);
 		Customer loaded = this.customers.findByUserId("ada").orElseThrow();
@@ -85,7 +94,7 @@ class CustomerMongoRoundTripTest {
 	@Test
 	@DisplayName("the four-bean CMP graph is stored as ONE document in ONE collection")
 	void the_cmp_graph_is_one_document() {
-		this.customers.save(Customer.register("ada", contact()));
+		this.customers.save(Customer.register("ada", HASH, contact()));
 
 		Document raw = this.template.getCollection(COLLECTION).find().first();
 		assertThat(raw).isNotNull();
@@ -94,6 +103,11 @@ class CustomerMongoRoundTripTest {
 		// document identity, not a field sitting beside a generated ObjectId.
 		assertThat(raw.getString("_id")).isEqualTo("ada");
 		assertThat(raw).doesNotContainKey("userId");
+
+		// The UserEJB half of the "userId = userName" join is a field of the same document, stored
+		// as the bare hash string rather than a wrapper subdocument (Issue 1.8, finding #1).
+		assertThat(raw.getString("passwordHash")).isEqualTo(HASH.value());
+		assertThat(raw).doesNotContainKey("password");
 
 		// AccountEJB / ContactInfoEJB / AddressEJB are subdocuments nested the way the CMR fields
 		// nest: customer.account.contactInfo.address (ejb-jar.xml:274, :337, :295).

@@ -37,11 +37,12 @@ class LayeringRulesTest {
 	private static final String JPA_ADAPTER = "..adapter.persistence.jpa..";
 
 	/**
-	 * The 1.1 skeleton spike ({@code Member}, {@code MemberRepository}, {@code HomeController},
-	 * {@code SecurityConfig}) sits in the root package and is deliberately framework-soaked — it
-	 * exists to prove the stack carries, and {@code SkeletonSpikeTest} is the evidence for it.
-	 * It is throwaway and E4 replaces it. Matching the package exactly, with no trailing "..",
-	 * excludes those classes and nothing else.
+	 * The 1.1 skeleton spike ({@code Member}, {@code MemberRepository}, {@code HomeController})
+	 * sits in the root package and is deliberately framework-soaked — it exists to prove the stack
+	 * carries, and {@code SkeletonSpikeTest} is the evidence for it. It is throwaway and E4
+	 * replaces it. Matching the package exactly, with no trailing "..", excludes those classes and
+	 * nothing else. ({@code SecurityConfig} started here too; Issue 1.8 moved it to
+	 * {@code shared.security}, where the exemptions below already expected it.)
 	 */
 	private static final String SKELETON_SPIKE = Contexts.ROOT;
 
@@ -151,6 +152,23 @@ class LayeringRulesTest {
 		.dependOnClassesThat()
 		.resideInAnyPackage("jakarta.persistence..", "org.springframework.data.jpa..")
 		.because("the relational mapping is an adapter concern, symmetric with the Mongo one");
+
+	/**
+	 * Hashing happens in exactly one place. Issue 1.8 replaces {@code UserEJB.java:88}'s plaintext
+	 * {@code equals} with BCrypt, and the guarantee is only worth something if there is one code
+	 * path that produces a hash: the application service. The web adapter of 1.9 binds a form and
+	 * hands the raw password to that service; the security adapter hands the stored hash to Spring
+	 * Security; the {@code PasswordEncoder} bean itself is declared in {@code shared.security}.
+	 * Nothing else has any business importing the crypto package.
+	 */
+	@ArchTest
+	static final ArchRule password_hashing_happens_in_the_application_layer = noClasses().that()
+		.resideOutsideOfPackages(APPLICATION, Contexts.SHARED + "..", SKELETON_SPIKE)
+		.should()
+		.dependOnClassesThat()
+		.resideInAPackage("org.springframework.security.crypto..")
+		.because("Issue 1.8: one hashing path, in the application service, behind the PasswordEncoder "
+				+ "bean that shared.security declares (finding #1)");
 
 	/**
 	 * The web tier is a delivery mechanism and lives in one place. The legacy app scattered its
