@@ -2,6 +2,7 @@ package com.jucasoliveira.kitchensink;
 
 import javax.sql.DataSource;
 
+import com.jucasoliveira.kitchensink.catalog.application.CatalogRepository;
 import com.jucasoliveira.kitchensink.customer.application.CustomerRepository;
 import com.mongodb.client.MongoClient;
 import org.junit.jupiter.api.DisplayName;
@@ -73,6 +74,17 @@ class PersistenceProfileMongoTest {
 		assertThat(this.context.getBeanNamesForType(CustomerRepository.class)).hasSize(1);
 		Class<?> adapter = AopProxyUtils.ultimateTargetClass(this.context.getBean(CustomerRepository.class));
 		assertThat(adapter.getPackageName()).isEqualTo("com.jucasoliveira.kitchensink.customer.adapter.persistence.mongo");
+	}
+
+	@Test
+	@DisplayName("the catalog port has exactly one adapter, and under mongo it is the Mongo one — issue 3.3")
+	void the_catalog_port_is_bound_to_the_mongo_adapter() {
+		// The other half of the switch, stated where its jpa twin is stated. Both halves are
+		// wiring assertions; CatalogRepositoryContract is what proves the two adapters agree.
+		assertThat(this.context.getBeanNamesForType(CatalogRepository.class)).hasSize(1);
+		Class<?> adapter = AopProxyUtils.ultimateTargetClass(this.context.getBean(CatalogRepository.class));
+		assertThat(adapter.getPackageName())
+			.isEqualTo("com.jucasoliveira.kitchensink.catalog.adapter.persistence.mongo");
 	}
 
 	@Test
