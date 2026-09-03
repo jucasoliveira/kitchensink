@@ -118,7 +118,6 @@ jobs:
         run: >
           ./mvnw -B -ntp test
           -Dgroups=parity
-          -DfailIfNoTests=false
           -Djacoco.skip=true
           -Dkitchensink.build.directory=${{ github.workspace }}/target
 
