@@ -25,12 +25,16 @@ class CustomerTest {
 	static final ContactInfo CONTACT = new ContactInfo("Ada", "Lovelace", "020 7946 0000", "ada@example.com",
 			ADDRESS);
 
+	/** Issue 1.8: a customer is registered with a hash, never a password — see {@link PasswordHashTest}. */
+	static final PasswordHash HASH = new PasswordHash(PasswordHashTest.BCRYPT);
+
 	@Test
 	@DisplayName("registering creates the account, and the account is active")
 	void a_registered_customer_has_an_active_account() {
-		Customer customer = Customer.register("ada", CONTACT);
+		Customer customer = Customer.register("ada", HASH, CONTACT);
 
 		assertThat(customer.userId()).isEqualTo("ada");
+		assertThat(customer.passwordHash()).isEqualTo(HASH);
 		assertThat(customer.account().status()).isEqualTo(AccountStatus.ACTIVE);
 		assertThat(customer.account().contactInfo()).isEqualTo(CONTACT);
 	}
@@ -38,7 +42,7 @@ class CustomerTest {
 	@Test
 	@DisplayName("the aggregate is a value: the same registration twice is the same customer")
 	void the_aggregate_has_value_equality() {
-		assertThat(Customer.register("ada", CONTACT)).isEqualTo(Customer.register("ada", CONTACT));
+		assertThat(Customer.register("ada", HASH, CONTACT)).isEqualTo(Customer.register("ada", HASH, CONTACT));
 	}
 
 }

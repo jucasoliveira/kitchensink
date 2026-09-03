@@ -4,6 +4,7 @@ import java.sql.Connection;
 
 import javax.sql.DataSource;
 
+import com.jucasoliveira.kitchensink.customer.application.CustomerRegistration;
 import com.jucasoliveira.kitchensink.customer.application.CustomerRepository;
 import com.mongodb.client.MongoClient;
 import org.junit.jupiter.api.DisplayName;
@@ -14,6 +15,7 @@ import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.context.ApplicationContext;
 import org.springframework.core.env.Environment;
 import org.springframework.data.mongodb.core.MongoTemplate;
+import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -81,6 +83,18 @@ class PersistenceProfileJpaTest {
 		// profiles stay green, or the gap is written down" — this is where it is written. When
 		// 4.6 lands, this flips to hasSize(1) and moves next to its mongo twin.
 		assertThat(this.context.getBeanNamesForType(CustomerRepository.class)).isEmpty();
+	}
+
+	@Test
+	@DisplayName("sign-on has no customer behind it under jpa yet — the 1.8 corollary of the 4.6 gap")
+	void sign_on_is_not_backed_by_the_customer_aggregate_yet() {
+		// Everything in the customer context that needs the port — the registration service and
+		// the UserDetailsService that SignOnTest proves under mongo — is guarded the same way the
+		// port's adapter is, so this context still starts. Boot's generated in-memory user fills
+		// the UserDetailsService slot meanwhile. When 4.6 lands, both guards go and this flips.
+		assertThat(this.context.getBeanNamesForType(CustomerRegistration.class)).isEmpty();
+		assertThat(this.context.getBeansOfType(UserDetailsService.class).values())
+			.noneMatch(service -> service.getClass().getPackageName().startsWith("com.jucasoliveira.kitchensink.customer"));
 	}
 
 	@Test
