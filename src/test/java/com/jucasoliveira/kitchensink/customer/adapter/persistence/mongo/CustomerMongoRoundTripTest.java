@@ -4,6 +4,7 @@ import java.util.ArrayList;
 
 import com.jucasoliveira.kitchensink.TestcontainersConfiguration;
 import com.jucasoliveira.kitchensink.customer.application.CustomerRepository;
+import com.jucasoliveira.kitchensink.customer.application.DuplicateAccountException;
 import com.jucasoliveira.kitchensink.customer.domain.Address;
 import com.jucasoliveira.kitchensink.customer.domain.ContactInfo;
 import com.jucasoliveira.kitchensink.customer.domain.Customer;
@@ -19,6 +20,7 @@ import org.springframework.context.annotation.Import;
 import org.springframework.data.mongodb.core.MongoTemplate;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 
 /**
  * Issue 1.7 — the walking skeleton's Mongo round-trip.
@@ -76,7 +78,7 @@ class CustomerMongoRoundTripTest {
 	void a_registered_customer_round_trips() {
 		Customer registered = Customer.register("ada", HASH, contact());
 
-		this.customers.save(registered);
+		this.customers.add(registered);
 		Customer loaded = this.customers.findByUserId("ada").orElseThrow();
 
 		// Record equality walks the whole graph — status, contact info, address: every CMP field
@@ -99,16 +101,51 @@ class CustomerMongoRoundTripTest {
 		// kitchensink twin's table, and the port grows the one method the screen needs.
 		assertThat(this.customers.findAll()).isEmpty();
 
-		Customer ada = this.customers.save(Customer.register("ada", HASH, contact()));
-		Customer grace = this.customers.save(Customer.register("grace", HASH, contact()));
+		Customer ada = this.customers.add(Customer.register("ada", HASH, contact()));
+		Customer grace = this.customers.add(Customer.register("grace", HASH, contact()));
 
 		assertThat(this.customers.findAll()).containsExactlyInAnyOrder(ada, grace);
 	}
 
 	@Test
+	@DisplayName("Issue 4.4 — the store is the second gate: a duplicate user id is refused, not upserted")
+	void a_duplicate_user_id_is_refused_by_the_store() {
+		// CustomerRegistration checks findByUserId first, so in the running application this path
+		// is only reached when two registrations race between that check and this write. That is
+		// exactly why the test speaks to the port directly: going through the service would prove
+		// the service's guard again and never touch the guard being tested here.
+		//
+		// The legacy had only this half. SignOnEJB.createUser (SignOnEJB.java:80-82) was one line,
+		// ulh.create(userName, password), and the CMP container refused the second create on the
+		// same primary key. The document _id is that primary key (see the test below), so the
+		// refusal is the same mechanism, and the adapter's job is only to name it.
+		//
+		// Deliberately NOT @Tag("parity"), unlike its twin in CustomerRegistrationTest: what can
+		// break here is the adapter's exception translation, which is a plain correctness concern
+		// and belongs in the everyday build rather than only in the parity job.
+		Customer ada = this.customers.add(Customer.register("ada", HASH, contact()));
+
+		PasswordHash otherHash = new PasswordHash("$2a$10$Kx7bPqRs2mTuVwXyZa3bCd4eFg5hIj6kLm7nOp8qRs9tUv0wXy1zA");
+		ContactInfo impostor = new ContactInfo("Not", "Ada", "029 2018 0000", "impostor@example.com",
+				new Address("2 Other St", null, "Cardiff", "CDF", "CF10 1AA", "GB"));
+
+		assertThatExceptionOfType(DuplicateAccountException.class)
+			.isThrownBy(() -> this.customers.add(Customer.register("ada", otherHash, impostor)))
+			.satisfies(taken -> assertThat(taken.userId()).isEqualTo("ada"));
+
+		// The failure mode this replaces was silent: MongoRepository.save() on a record whose @Id
+		// is already set is an upsert, so the second registration used to overwrite the first —
+		// same document count, different owner, different password. Counting is not enough to
+		// catch that, so the surviving document is compared whole.
+		assertThat(this.template.getCollection(COLLECTION).countDocuments()).isEqualTo(1);
+		assertThat(this.customers.findByUserId("ada")).contains(ada);
+		assertThat(this.customers.findAll()).containsExactly(ada);
+	}
+
+	@Test
 	@DisplayName("the four-bean CMP graph is stored as ONE document in ONE collection")
 	void the_cmp_graph_is_one_document() {
-		this.customers.save(Customer.register("ada", HASH, contact()));
+		this.customers.add(Customer.register("ada", HASH, contact()));
 
 		Document raw = this.template.getCollection(COLLECTION).find().first();
 		assertThat(raw).isNotNull();

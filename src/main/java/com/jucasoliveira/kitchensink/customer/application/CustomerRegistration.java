@@ -25,8 +25,12 @@ public class CustomerRegistration {
     }
 
     public Customer register(@Valid RegisterCustomerCommand command) {
-        PasswordHash hash = new PasswordHash(encoder.encode(command.password()));
-        return customers.save(Customer.register(command.userId(), hash, command.contactInfo()));
+        if (this.customers.findByUserId(command.userId()).isPresent()) {
+            throw new DuplicateAccountException(command.userId());
+        }
+
+        PasswordHash hash = new PasswordHash(this.encoder.encode(command.password()));
+        return this.customers.add(Customer.register(command.userId(), hash, command.contactInfo()));
     }
 
     public List<Customer> registered() {

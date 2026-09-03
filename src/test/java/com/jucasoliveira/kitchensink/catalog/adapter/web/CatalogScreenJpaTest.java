@@ -13,6 +13,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import static org.hamcrest.Matchers.containsString;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
@@ -47,6 +48,23 @@ class CatalogScreenJpaTest {
 			.andExpect(content().string(containsString("Angelfish")))
 			.andExpect(content().string(containsString("Goldfish")))
 			.andExpect(content().string(containsString("/catalog/products/FI-SW-01")));
+	}
+
+	@Test
+	@DisplayName("\"/\" is the store front under jpa too — HomeController carries no @Profile")
+	void the_store_front_is_reachable_under_the_jpa_profile() throws Exception {
+		// This one is here because it was once false. HomeController carried @Profile("mongo"), so
+		// under jpa it was never registered and Boot's WelcomePageHandlerMapping served the spike's
+		// index.html instead — a 200 with a "Members" heading and no controller behind it at all.
+		// 7.4 demos the profile switch by running the same journey against both stores, and the
+		// journey starts at "/", so the gap sat on the first click. Same reason the class javadoc
+		// gives for CatalogController: a @Profile on a web adapter is a screen that only half
+		// exists.
+		this.mvc.perform(get("/")).andExpect(status().is3xxRedirection()).andExpect(redirectedUrl("/catalog"));
+
+		this.mvc.perform(get("/catalog").locale(Locale.US))
+			.andExpect(status().isOk())
+			.andExpect(content().string(containsString("Welcome to the BluePrints Petstore")));
 	}
 
 	@Test

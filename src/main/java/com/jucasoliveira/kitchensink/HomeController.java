@@ -1,23 +1,13 @@
 package com.jucasoliveira.kitchensink;
 
-import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Controller;
-import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 
 @Controller
-@Profile("mongo")
 public class HomeController {
-    private final MemberRepository members;
-
-    HomeController(MemberRepository members) {
-        this.members = members;
-    }
 
     @GetMapping("/")
-    String index(Model model) {
-        model.addAttribute("members", members.findAll());
-        return "index";
+    String home() {
+        return "redirect:/catalog";
     }
-
 }

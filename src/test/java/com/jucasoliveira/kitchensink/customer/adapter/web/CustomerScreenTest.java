@@ -3,12 +3,15 @@ package com.jucasoliveira.kitchensink.customer.adapter.web;
 import com.jucasoliveira.kitchensink.TestcontainersConfiguration;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.context.annotation.Import;
+import org.bson.Document;
 import org.springframework.data.mongodb.core.MongoTemplate;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
@@ -57,6 +60,9 @@ class CustomerScreenTest {
 
 	@Autowired
 	MongoTemplate template;
+
+	@Autowired
+	PasswordEncoder encoder;
 
 	@BeforeEach
 	void reset() {
@@ -115,6 +121,72 @@ class CustomerScreenTest {
 			.andExpect(content().string(not(containsString(PASSWORD))));
 
 		assertThat(this.template.getCollection("customers").countDocuments()).isZero();
+	}
+
+	@Test
+	@Tag("parity")
+	@DisplayName("mappings.xml:109 — a second registration on a taken user id gets duplicate_account.screen, not the first account")
+	void a_duplicate_registration_is_sent_to_the_duplicate_account_screen() throws Exception {
+		// Legacy: DuplicateAccountException was not handled by the action at all — mappings.xml:109
+		// is an <exception-mapping>, so the WAF caught it centrally and rendered
+		// duplicate_account.screen (screendefinitions_en_US.xml:170-176). @ExceptionHandler is the
+		// same idea at controller scope: the POST handler stays free of the failure path.
+		this.mvc.perform(registration("ada").with(csrf())).andExpect(status().is3xxRedirection());
+
+		this.mvc.perform(registration("ada").with(csrf()))
+			// The one deliberate departure: the legacy screen was a 200, because in 2002 every screen
+			// was. Same departure, same reasoning as the catalog's 404 for an unknown id — see
+			// CatalogScreenTest, "not a status code you can build a client on".
+			.andExpect(status().isConflict())
+			// duplicate_account.jsp:44-48, both halves: the heading and the instruction.
+			.andExpect(content().string(containsString("User Creation Error!")))
+			.andExpect(content().string(containsString("in use")))
+			// Not the registration screen re-rendered: a shopper who sees this has left the form.
+			.andExpect(content().string(not(containsString("name=\"userId\""))));
+
+		assertThat(this.template.getCollection("customers").countDocuments()).isEqualTo(1);
+	}
+
+	@Test
+	@Tag("parity")
+	@DisplayName("the first account survives a duplicate registration whole — contact info and credential both")
+	void a_duplicate_registration_does_not_take_over_the_first_account() throws Exception {
+		// This is the test with teeth. Before #25 the second POST answered 3xx and MongoRepository
+		// .save() upserted on the @Id, so an anonymous visitor could take over any account whose
+		// user id they could guess — same document, their password. Counting documents does not
+		// catch that; only reading the survivor back does.
+		this.mvc.perform(registration("ada").with(csrf())).andExpect(status().is3xxRedirection());
+
+		this.mvc
+			.perform(post("/customers").contentType(MediaType.APPLICATION_FORM_URLENCODED)
+				.param("userId", "ada")
+				.param("password", "totally-different")
+				.param("contactInfo.givenName", "Mallory")
+				.param("contactInfo.familyName", "Attacker")
+				.param("contactInfo.telephone", "029 2018 0000")
+				.param("contactInfo.email", "impostor@example.com")
+				.param("contactInfo.address.streetName1", "2 Other St")
+				.param("contactInfo.address.streetName2", "")
+				.param("contactInfo.address.city", "Cardiff")
+				.param("contactInfo.address.state", "CDF")
+				.param("contactInfo.address.zipCode", "CF10 1AA")
+				.param("contactInfo.address.country", "GB")
+				.with(csrf()))
+			.andExpect(status().isConflict());
+
+		this.mvc.perform(get("/customers"))
+			.andExpect(status().isOk())
+			.andExpect(content().string(containsString("Lovelace")))
+			.andExpect(content().string(not(containsString("Mallory"))))
+			.andExpect(content().string(not(containsString("Attacker"))));
+
+		// And the credential is still the first registration's, which is the half the page cannot
+		// show: SignOnTest proves a stored hash authenticates, so a takeover here would be invisible
+		// on screen and total at the sign-on page.
+		Document raw = this.template.getCollection("customers").find().first();
+		assertThat(raw).isNotNull();
+		assertThat(this.encoder.matches(PASSWORD, raw.getString("passwordHash"))).isTrue();
+		assertThat(this.encoder.matches("totally-different", raw.getString("passwordHash"))).isFalse();
 	}
 
 	@Test

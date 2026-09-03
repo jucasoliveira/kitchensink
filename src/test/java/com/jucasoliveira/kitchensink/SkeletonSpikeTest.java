@@ -71,14 +71,19 @@ class SkeletonSpikeTest {
 	}
 
 	@Test
-	@DisplayName("the home page renders through a live security filter chain")
+	@DisplayName("a page renders through a live security filter chain, and \"/\" is the store front")
 	void one_page_renders() throws Exception {
-		this.members.save(new Member(null, "Ada", "ada@example.com", new Member.Address("1 Main", "London")));
+		// 1.1 pointed this at "/" and a Members table of its own. E4 replaced both halves, as the
+		// class javadoc says it would: "/" is now the store front — legacy index.jsp was demo
+		// harness ("enter the store" after populating.jsp, index.jsp:77-85) and the application
+		// began at main.screen (screendefinitions_en_US.xml:45) — and the skeleton's own Thymeleaf
+		// page is the 1.9 registration screen, which is still read out of Mongo through
+		// CustomerRegistration.registered() and still sits behind the chain.
+		this.mvc.perform(get("/")).andExpect(status().is3xxRedirection()).andExpect(redirectedUrl("/catalog"));
 
-		this.mvc.perform(get("/"))
+		this.mvc.perform(get("/customers"))
 			.andExpect(status().isOk())
-			.andExpect(content().string(containsString("ada@example.com")))
-			.andExpect(content().string(containsString("London")));
+			.andExpect(content().string(containsString("name=\"userId\"")));
 	}
 
 	@Test
