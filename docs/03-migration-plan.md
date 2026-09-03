@@ -58,7 +58,7 @@ workflow, which cannot be half-built.
 ## 4. Definition of done (per issue)
 
 1. Behaviour is covered by a test that names the legacy rule or `file:line` it preserves.
-2. The legacy→new traceability matrix (Issue 2.3) has a row for it.
+2. The legacy→new traceability matrix ([Issue 2.3](https://github.com/jucasoliveira/kitchensink/issues/11), [`06-traceability-matrix.md`](06-traceability-matrix.md)) has a row for it.
 3. No new ArchUnit violation; module boundaries hold.
 4. Works under both active persistence profiles, or the gap is written down.
 5. Merged via PR to `main`; CI green. No direct pushes to `main`.
