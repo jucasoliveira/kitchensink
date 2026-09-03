@@ -17,12 +17,13 @@ import static org.assertj.core.api.Assertions.assertThat;
  *
  * <p>Legacy anchor: {@code apps/petstore/src/docroot/populate/Populate-UTF8.xml:204-1198}. The
  * acceptance criterion for 2.1 is "same category/product/item counts per locale as the legacy
- * seed", and this class is the left-hand side of that comparison. It reads the seed from the
- * reference tree through {@link LegacyCatalogSeed}; the loader tests will read the right-hand side
- * from the store and assert equality with the same figures.
+ * seed", and this class is the left-hand side of that comparison. It reads the seed through
+ * {@link LegacyCatalogSeed} — a verbatim copy of the legacy file on the test classpath, kept honest by
+ * {@link LegacySeedCopyIsVerbatimTest}; the loader test reads the right-hand side from the store and
+ * asserts equality with the same figures.
  *
  * <p>It is tagged {@code parity} because it characterizes the legacy, not the new code: if it
- * ever goes red, either the reference tree was edited (it must not be — {@code AGENTS.md} §2) or
+ * ever goes red, either the copy of the seed was edited (it must not be — refresh it with cp) or
  * the fixture reader stopped reading the seed the way {@code PopulateServlet} did.
  */
 @Tag("parity")

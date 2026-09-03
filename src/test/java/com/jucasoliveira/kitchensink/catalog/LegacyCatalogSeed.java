@@ -1,20 +1,26 @@
 package com.jucasoliveira.kitchensink.catalog;
 
 import java.io.IOException;
-import java.nio.file.Files;
+import java.io.InputStream;
+import java.io.StringReader;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import javax.xml.XMLConstants;
+import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
+import javax.xml.parsers.ParserConfigurationException;
 
+import org.springframework.core.io.ClassPathResource;
 import org.w3c.dom.Element;
 import org.w3c.dom.NodeList;
+import org.xml.sax.InputSource;
+import org.xml.sax.SAXException;
 
 /**
- * Issue 2.1 — the legacy catalog seed, read from the reference tree exactly as the 2003 loader read it.
+ * Issue 2.1 — the legacy catalog seed, read exactly as the 2003 loader read it.
  *
  * <p>Legacy anchor: {@code apps/petstore/src/docroot/populate/Populate-UTF8.xml:204-1198} (the
  * {@code <Catalog>} element) as consumed by {@code tools/populate/PopulateServlet.java} through
@@ -36,13 +42,26 @@ import org.w3c.dom.NodeList;
  * exactly three. Nothing in the loader fills a gap, so a missing locale row stays missing.</li>
  * </ol>
  *
- * <p>The reference tree is read-only ({@code AGENTS.md} §2) and is checked out whole in CI, so the
- * path is resolved from the project base directory Surefire runs in.
+ * <h2>Where the file comes from</h2>
+ *
+ * <p>The reference tree {@code petstore1.3.1_02/} is 146 MB, git-ignored, and exists only on a
+ * developer's machine — CI never has it. So the seed is read from a <em>verbatim copy</em> at
+ * {@code src/test/resources/legacy/populate/Populate-UTF8.xml}, and
+ * {@link LegacySeedCopyIsVerbatimTest} asserts, wherever the reference tree is present, that the
+ * copy is byte-identical to it. The evidence is copied, never edited ({@code AGENTS.md} §2).
+ *
+ * <p>The copy is parsed without its DTDs: the DOCTYPE pulls in {@code dtds/*.dtd} by relative
+ * path, nothing here validates, and resolving every external entity to an empty document keeps
+ * the parser off the file system entirely.
  */
 public final class LegacyCatalogSeed {
 
-	public static final Path POPULATE_UTF8 = Path.of("petstore1.3.1_02", "src", "apps", "petstore", "src", "docroot",
-			"populate", "Populate-UTF8.xml");
+	/** The verbatim copy on the test classpath — what every test reads. */
+	public static final String CLASSPATH_COPY = "legacy/populate/Populate-UTF8.xml";
+
+	/** The original in the git-ignored reference tree — present locally, absent in CI. */
+	public static final Path REFERENCE_TREE_ORIGINAL = Path.of("petstore1.3.1_02", "src", "apps", "petstore",
+			"src", "docroot", "populate", "Populate-UTF8.xml");
 
 	/** {@code category_details}: {@code (catid, name, image, descn, locale)} — PopulateSQL.xml:66-70. */
 	public record Details(String name, String image, String description) {
@@ -65,23 +84,19 @@ public final class LegacyCatalogSeed {
 	public final List<Product> products = new ArrayList<>();
 	public final List<Item> items = new ArrayList<>();
 
+	/** Reads the classpath copy. */
 	public static LegacyCatalogSeed read() {
-		return read(POPULATE_UTF8);
+		try (InputStream in = new ClassPathResource(CLASSPATH_COPY).getInputStream()) {
+			return read(in);
+		}
+		catch (IOException ex) {
+			throw new IllegalStateException("Could not read the legacy seed copy " + CLASSPATH_COPY, ex);
+		}
 	}
 
-	public static LegacyCatalogSeed read(Path populateUtf8) {
-		if (!Files.isRegularFile(populateUtf8)) {
-			throw new IllegalStateException("Legacy seed not found at " + populateUtf8.toAbsolutePath()
-					+ " — the parity tests read the reference tree and must run from the project root");
-		}
+	static LegacyCatalogSeed read(InputStream populateUtf8) {
 		try {
-			DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
-			factory.setNamespaceAware(true);
-			// The DOCTYPE pulls in dtds/*.dtd relative to the file; those are part of the reference
-			// tree, so resolving them is fine. Nothing else may be fetched.
-			factory.setAttribute(XMLConstants.ACCESS_EXTERNAL_DTD, "file");
-			factory.setAttribute(XMLConstants.ACCESS_EXTERNAL_SCHEMA, "");
-			Element populate = factory.newDocumentBuilder().parse(populateUtf8.toFile()).getDocumentElement();
+			Element populate = parser().parse(populateUtf8).getDocumentElement();
 			Element catalog = child(populate, "Catalog");
 			LegacyCatalogSeed seed = new LegacyCatalogSeed();
 			for (Element e : children(child(catalog, "Categories"), "Category")) {
@@ -103,9 +118,21 @@ public final class LegacyCatalogSeed {
 			}
 			return seed;
 		}
-		catch (IOException | javax.xml.parsers.ParserConfigurationException | org.xml.sax.SAXException ex) {
-			throw new IllegalStateException("Could not read the legacy seed " + populateUtf8, ex);
+		catch (IOException | ParserConfigurationException | SAXException ex) {
+			throw new IllegalStateException("Could not parse the legacy seed", ex);
 		}
+	}
+
+	private static DocumentBuilder parser() throws ParserConfigurationException {
+		DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
+		factory.setNamespaceAware(true);
+		factory.setValidating(false);
+		factory.setAttribute(XMLConstants.ACCESS_EXTERNAL_DTD, "");
+		factory.setAttribute(XMLConstants.ACCESS_EXTERNAL_SCHEMA, "");
+		DocumentBuilder builder = factory.newDocumentBuilder();
+		// Every SYSTEM "dtds/*.dtd" reference resolves to nothing: no validation, no file access.
+		builder.setEntityResolver((publicId, systemId) -> new InputSource(new StringReader("")));
+		return builder;
 	}
 
 	/** Rows of {@code *_details} for one entity, keyed by the locale as the legacy stored it. */
