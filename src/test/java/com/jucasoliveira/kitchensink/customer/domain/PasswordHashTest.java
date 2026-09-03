@@ -11,6 +11,13 @@ import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException
 /**
  * Issue 1.8 — the one deliberate deviation from parity, made unrepresentable.
  *
+ * <p>Issue 2.2: the BCrypt deviation's {@code @Tag("parity")} test lives in
+ * {@code SignOnTest#the_password_never_reaches_the_store}, not here. This class is the primary,
+ * and only, exerciser of {@link PasswordHash}'s branches, and every method in it is in the
+ * {@code build} job's JaCoCo bundle; tagging any of them {@code parity} would route them to the
+ * {@code -DexcludedGroups=parity} run instead and drop domain coverage under the 0.70 branch
+ * floor — verified by trying it and watching CI fail on exactly that.
+ *
  * <p>Legacy: {@code UserEJB} keeps the password as a CMP {@code String} field and compares it with
  * {@code password.equals(getPassword())} ({@code signon/.../user/ejb/UserEJB.java:88}) — finding #1
  * in {@code docs/01-legacy-architecture.md}, and the deviation ADR-0006 lists first. The type that
