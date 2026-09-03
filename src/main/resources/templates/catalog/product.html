@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" th:replace="~{layout :: page('Product', ~{::main})}">
+<body>
+<main>
+  <p class="petstore_title">Items for this Product</p>
+  <table class="petstore_listing">
+    <tr th:each="i : ${page.contents()}">
+      <td><a th:href="@{/catalog/items/{id}(id=${i.id()})}" th:text="${i.id()}">EST-1</a></td>
+      <td th:text="${i.attributes()}">Large Cuddly</td>
+      <td th:text="${i.listPrice()}">$0.00</td>
+    </tr>
+  </table>
+  <a th:if="${page.previousPageAvailable()}"
+     th:href="@{/catalog/products/{id}(id=${product.id()},start=${page.startOfPreviousPage()},count=${count})}">Previous</a>
+  <a th:if="${page.hasNext()}"
+     th:href="@{/catalog/products/{id}(id=${product.id()},start=${page.startOfNextPage()},count=${count})}">Next</a>
+</main>
+</body>
+</html>

@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layout :: page('Welcome to the BluePrints Petstore', ~{::main})}">
+<body>
+<main>
+  <img th:src="@{/images/splash.gif}" alt="Pet Selection Map" width="350" height="355">
+  <ul class="petstore_listing">
+    <li th:each="c : ${categories}">
+      <a th:href="@{/catalog/categories/{id}(id=${c.id()})}" th:text="${c.name()}">Fish</a>
+    </li>
+  </ul>
+</main>
+</body>
+</html>

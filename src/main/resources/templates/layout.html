@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" th:fragment="page(title, body)">
+<head>
+  <meta charset="UTF-8">
+  <title th:text="${title}">Java Pet Store</title>
+  <link rel="stylesheet" th:href="@{/css/petstore.css}">
+</head>
+<body class="petstore">
+  <div data-slot="banner" th:insert="~{fragments/banner :: banner}"></div>
+  <div class="ps-columns">
+    <div data-slot="sidebar" th:insert="~{fragments/sidebar :: sidebar}"></div>
+    <div data-slot="body" th:insert="${body}"></div>
+  </div>
+  <div data-slot="footer" th:insert="~{fragments/footer :: footer}"></div>
+</body>
+</html>
