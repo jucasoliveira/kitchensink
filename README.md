@@ -82,11 +82,16 @@ rather than idle in it. The legacy app made the same choice at deploy time, thro
 ./mvnw test -Dgroups=parity -DfailIfNoTests=false   # the @Tag("parity") tests; the flag goes once 2.2 lands
 ```
 
+What each gate checks, where it runs in CI, and how to make each one fail on purpose is
+[docs/05-test-harness.md](docs/05-test-harness.md). Two tests exist only to prove the harness
+itself: `RulesCanFailTest` evaluates the ArchUnit rules against classes written to break them, and
+`TestcontainersHarnessTest` checks the context is wired to the container it started.
+
 The profile switch has its own tests: `PersistenceProfileMongoTest` boots the default profile
 against Testcontainers; `PersistenceProfileJpaTest` boots `jpa` with no container at all; and
 `ProfileConfigurationTest` pins the shape of `application.yaml` so the two stay honest.
 
-The build directory is `${java.io.tmpdir}/kitchensink-target` by default, because this repository
+The build directory is `${java.io.tmpdir}/kitchensink/target` by default, because this repository
 lives on a non-APFS volume where macOS scatters `._*` sidecar files through `target/`. Pass
 `-Dkitchensink.build.directory=target` to put it back in the repository, as CI does.
 
