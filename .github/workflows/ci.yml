@@ -70,11 +70,19 @@ jobs:
       # Testcontainers needs no setup - ubuntu-latest ships a running Docker daemon, and
       # TestcontainersConfiguration starts its own mongo:7.0. Do not add a `services:` block;
       # a second Mongo would only fight this one for port 27017.
-      - name: verify (tests, ArchUnit, JaCoCo)
+      #
+      # This step used to pass -DexcludedGroups=parity. It no longer does, because the JaCoCo floor
+      # runs here and it is measured over `*/domain/**` and `*/application/**`: excluding a third of
+      # the suite meant any class whose only tests were parity tests read as 0 % covered. Issue 3.4
+      # was the first to hit it - CatalogPage and CatalogService are 100 % covered by
+      # CatalogPageTest and CatalogServiceTest, both @Tag("parity"), and the floor still failed at
+      # 0.36 line / 0.22 branch. The parity job below is unchanged and is still the only place
+      # `-Dgroups=parity` runs on its own, so a parity break is still reported as its own gate; it
+      # now reddens this job too, which is the price of a coverage number that means something.
+      - name: verify (all tests incl. parity, ArchUnit, JaCoCo)
         run: >
           ./mvnw -B -ntp verify
           -Dkitchensink.build.directory=${{ github.workspace }}/target
-          -DexcludedGroups=parity
 
       - name: Upload reports
         if: always()
@@ -108,9 +116,8 @@ jobs:
       # `test`, not `verify`: the parity tests run under Surefire, and there is no reason to
       # repackage the fat jar a second time per pull request.
       #
-      # -DfailIfNoTests=false is scaffolding. Issue 2.2 (#7) has not written the parity tests yet,
-      # so the tag currently matches nothing, which Surefire otherwise treats as a failure. REMOVE
-      # IT once 2.2 has landed - after that, "the parity job ran no tests" must be an error again.
+      # The -DfailIfNoTests=false scaffolding is gone, as issue 2.2 (#7) required: the tag matches
+      # 85 tests as of 3.4, so "the parity job ran no tests" is an error again, which is the point.
       #
       # -Djacoco.skip=true because the coverage floor is the build job's gate. Running it here on a
       # parity-only subset would report a second, lower, meaningless number.

@@ -12,7 +12,8 @@ checks nothing, and the difference only shows up on the day it matters.
 
 So this page does three things: names each gate and where it lives (§1), records the green runs
 (§2), and for every gate shows what red looks like *and how to make it red without editing
-`src/main`* (§3). §4 lists what 1.10 changed to get there, and §5 what it deliberately left.
+`src/main`* (§3). §4 lists what 1.10 changed to get there, §5 what it deliberately left, and §6 the
+one place two gates turned out to disagree — found the honest way, by a red build.
 
 ## 1. The gates
 
@@ -26,8 +27,8 @@ a unit-test break.
 | **Unit + slice tests** | Domain and application rules in isolation; the registration slice end to end — form or JSON in, `CustomerRegistration`, Mongo, page or JSON out | `src/test/**`, Surefire | `build` | The new code is broken |
 | **Testcontainers** | Every `@SpringBootTest` boots the *production* wiring against a real `mongo:7.0` it starts itself | `TestcontainersConfiguration` (`@ServiceConnection`, replica set) | `build` | The slice cannot reach its store |
 | **ArchUnit** | 16 rules: context boundaries (`BoundedContextRulesTest`), layering and port/adapter inversion (`LayeringRulesTest`) | `src/test/.../architecture/` | `build` | A boundary ADR-0005/0006 relies on has been crossed |
-| **JaCoCo floor** | 80 % line / 70 % branch — on `*/domain/**` and `*/application/**` **only** | `pom.xml`, `verify` phase | `build` | A rule was added without a test naming it |
-| **Parity** | `@Tag("parity")` characterization tests | Issue 2.2, unwritten | `parity` | The migration changed what Pet Store did |
+| **JaCoCo floor** | 80 % line / 70 % branch — on `*/domain/**` and `*/application/**` **only**, measured over the *whole* suite (see §6) | `pom.xml`, `verify` phase | `build` | A rule was added without a test naming it |
+| **Parity** | `@Tag("parity")` characterization tests — 85 of them as of 3.4 | `src/test/**`, run alone by `-Dgroups=parity` | `parity` (and, since 3.4, inside `build` too) | The migration changed what Pet Store did |
 
 Two design points worth defending in the playback:
 
@@ -65,8 +66,10 @@ a developer runs locally is the database the tests ran against.
 | *this branch's PR run* | `57-110-…` | 110 | 3 | met | *filled in when the PR is opened* |
 
 The `parity` job in the first row is green **with zero tests**. Its upload step even warns *"No
-files were found with the provided path: target/surefire-reports/"*. That is not a bug in 1.10, it
-is scaffolding for 2.2, and it is the one gate on this page that cannot currently fail — see §5.
+files were found with the provided path: target/surefire-reports/"*. That was not a bug in 1.10, it
+was scaffolding for 2.2 — and it is now spent: `-Dgroups=parity` matches 85 tests as of issue 3.4,
+`-DfailIfNoTests=false` is out of the workflow, and "the parity job ran no tests" is an error
+again. §6 records the one other thing 3.4 had to change to keep the numbers honest.
 
 ## 3. Red, for the right reason
 
@@ -193,13 +196,19 @@ The floor is on `domain` and `application` only, so a controller with no test do
 — by design, and `ComposeConsistencyTest` being the surviving test makes the point: it exercises
 nothing in either package.
 
-### 3.5 Parity — cannot fail yet, and says so
+### 3.5 Parity — now a real gate
 
-`./mvnw test -Dgroups=parity` runs no tests. The job passes only because of
-`-DfailIfNoTests=false`, and the workflow comments that flag with the instruction to remove it
-once 2.2 lands. Until then this is a gate in name only. It is listed here rather than hidden
-because "the parity job ran no tests" must become an error again the moment there are parity
-tests to run.
+`./mvnw test -Dgroups=parity -Djacoco.skip=true` runs 85 tests: the seed characterization of 2.1,
+the domain fidelity of 3.1, the repository and search tests of 3.2, and the paging and service
+tests of 3.4. `-DfailIfNoTests=false` has been removed from the workflow as its own comment
+instructed, so an empty tag is a failure again rather than a silent pass.
+
+**The drill.** Break a legacy rule rather than a unit rule, and watch which job reddens. Change one
+keyword in `CatalogService.keywords()` to skip the `toLowerCase`, and `CatalogServiceTest`'s
+*"DIVERGENCE — keywords are lowercased…"* fails in the `parity` job with the `file:line` of the
+2003 DAO in its javadoc. That is the distinction [03-migration-plan.md](03-migration-plan.md) §5
+asks for: the message names the legacy behaviour that moved, not an assertion that happened to
+change.
 
 ## 4. What 1.10 changed
 
@@ -215,8 +224,10 @@ All of it is test-side; `src/main` is untouched.
 
 ## 5. Deliberately not done here
 
-- **The parity job stays vacuous.** Seeding it with one `@Tag("parity")` test would be starting
-  2.2 (#10) from inside 1.10. The flag comes out with 2.2.
+- ~~**The parity job stays vacuous.** Seeding it with one `@Tag("parity")` test would be starting
+  2.2 (#10) from inside 1.10. The flag comes out with 2.2.~~ **Done:** 2.2 landed the first parity
+  tests and the flag came out; 3.4 took the count to 85. Left struck through rather than deleted,
+  because "what 1.10 deliberately left" is a record of a decision at a date, not a to-do list.
 - **Issues 2.4 (#12, ArchUnit rule set) and 2.5 (#13, Testcontainers base test + CI wiring)** are
   already satisfied by 1.2, 1.4 and this issue. They should be closed by reference to those rather
   than re-done — Lucas's call, noted here so it is not lost.
@@ -225,3 +236,47 @@ All of it is test-side; `src/main` is untouched.
 - **The bounded-context rules have no fixture proof.** They match one package below the root, and
   a fixture there would be a class in a real or a deferred context. `failOnEmptyShould=true` is
   what guards them.
+
+## 6. When two gates disagreed: coverage vs. the parity split
+
+Everything above was written when the parity job was empty, and it hid an interaction that only
+surfaced on issue 3.4. Worth keeping, because it is the one place on this page where a gate went
+red and the code was fine.
+
+**What happened.** [Run 33788866853](https://github.com/jucasoliveira/kitchensink/actions/runs/33788866853)
+failed the JaCoCo floor at 0.36 line against 0.80, and 0.22 branch against 0.70. No test failed;
+106 of them passed. The two classes 3.4 added, `CatalogPage` and `CatalogService`, are covered
+100 % line and 100 % branch — by `CatalogPageTest` and `CatalogServiceTest`, both `@Tag("parity")`.
+The `build` job ran `-DexcludedGroups=parity`, so it never executed them, and the floor it enforces
+is scoped to `*/domain/**` and `*/application/**`, which is exactly where those two classes live.
+The gate was measuring a third of the suite and reporting on all of it.
+
+**Why it had never bitten.** Parity-only coverage was not new — `PasswordHashTest`,
+`CustomerRegistrationTest` and `CatalogDomainLegacyFidelityTest` were all tagged. But their
+subjects were either records thin enough not to move the ratio, or classes the non-parity slice
+tests (`CustomerResourceTest`, `CustomerScreenTest`, `RegisterCustomerCommandTest`) covered
+incidentally on their way through. `CatalogService` was the first class of real size whose *only*
+tests are characterization tests. On the current plan it would not have been the last: the rest of
+the catalog and all of the order workflow are specified the same way.
+
+**The fix, and what it cost.** The `build` job stopped excluding the tag; it now runs the whole
+suite. The `parity` job is untouched and is still the only place `-Dgroups=parity` runs on its own
+and uploads its own report, so a parity break still has its own named gate. What it costs is that
+those 85 tests run twice per pull request (~15 s) and a parity break now reddens `build` as well.
+[03-migration-plan.md](03-migration-plan.md) §5 asks that *"a parity break must look different from
+a unit-test break"*; it still does — a parity break reddens both jobs, a unit break reddens only
+`build` — but the distinction is carried by which job fails rather than by which job ran the test.
+That is a real, if small, weakening of the signal, and it was accepted in exchange for a coverage
+number that is not an artefact of the split.
+
+**The option not taken.** JaCoCo can merge execution data across jobs: the `parity` job drops
+`-Djacoco.skip=true`, uploads its `jacoco.exec`, and the floor is checked after `jacoco:merge`.
+That keeps both properties intact and costs artifact passing plus job ordering — the check can no
+longer live inside `build`'s own `verify`. It is the right answer if the double run ever starts to
+hurt; it was not worth the CI surface today.
+
+**The lesson, stated so it is not re-learned.** A coverage floor and a test-selection filter are
+the same decision looked at twice. Any tag that removes tests from the job that measures coverage
+will eventually make a well-tested class look untested, and the failure arrives as a number rather
+than as a name — which is the hardest kind of red to read. The gate table in §1 now says which
+tests each floor is measured over, for that reason.
