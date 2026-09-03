@@ -6,7 +6,9 @@ import org.springframework.stereotype.Component;
 import java.util.List;
 import java.util.Optional;
 import com.jucasoliveira.kitchensink.customer.application.CustomerRepository;
+import com.jucasoliveira.kitchensink.customer.application.DuplicateAccountException;
 import com.jucasoliveira.kitchensink.customer.domain.Customer;
+import org.springframework.dao.DuplicateKeyException;
 
 @Component
 @Profile("mongo")
@@ -18,8 +20,12 @@ class MongoCustomerRepository implements CustomerRepository {
     }
 
     @Override
-    public Customer save(Customer customer) {
-        return documents.save(CustomerDocument.from(customer)).toDomain();
+    public Customer add(Customer customer) {
+        try {
+            return this.documents.insert(CustomerDocument.from(customer)).toDomain();
+        } catch (DuplicateKeyException taken) {
+            throw new DuplicateAccountException(customer.userId());
+        }
     }
 
     @Override

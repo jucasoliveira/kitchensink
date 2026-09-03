@@ -115,6 +115,49 @@ class CustomerResourceTest {
 	}
 
 	@Test
+	@DisplayName("Issue 4.4 — a duplicate user id is a 409 problem document, not a 201 and not a 500")
+	void a_duplicate_registration_is_a_409() throws Exception {
+		this.mvc.perform(registration("ada")).andExpect(status().isCreated());
+
+		this.mvc.perform(post("/api/customers").contentType(MediaType.APPLICATION_JSON)
+			.content(body("ada", "totally-different")))
+			.andExpect(status().isConflict())
+			// The class-level produces=application/json could have pinned the error body to plain
+			// JSON; RFC 9457 is what CatalogResource's ResponseStatusException already emits, and a
+			// client should not have to know which resource it is talking to to parse a failure.
+			.andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+			.andExpect(jsonPath("$.status").value(409))
+			.andExpect(jsonPath("$.title").value("Duplicate Account"))
+			.andExpect(jsonPath("$.detail").value(containsString("in use")))
+			.andExpect(jsonPath("$.userId").value("ada"))
+			// Finding #1 holds on the failure path too: a 409 is the one response where it would be
+			// tempting to echo the submitted credential back as "what you sent".
+			.andExpect(content().string(not(containsString("totally-different"))))
+			.andExpect(content().string(not(containsString("$2a$"))));
+
+		// Same rule as the screen, other channel, and the same thing at stake: not "how many
+		// documents" but "whose account".
+		this.mvc.perform(get("/api/customers").accept(MediaType.APPLICATION_JSON))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$", hasSize(1)))
+			.andExpect(jsonPath("$[0].contactInfo.email").value("ada@example.com"));
+	}
+
+	@Test
+	@DisplayName("the rule is the service's, not the channel's: form first, API second, still a 409")
+	void a_duplicate_across_the_two_channels_is_still_rejected() throws Exception {
+		// The acceptance criterion of 1.9 that this class exists to defend — "both channels go
+		// through the same application service" — applied to the rule rather than to the happy
+		// path. A duplicate check living in either web adapter would pass every test above and
+		// fail this one.
+		this.mvc.perform(CustomerScreenTest.registration("ada").with(csrf())).andExpect(status().is3xxRedirection());
+
+		this.mvc.perform(registration("ada")).andExpect(status().isConflict());
+
+		assertThat(this.template.getCollection("customers").countDocuments()).isEqualTo(1);
+	}
+
+	@Test
 	@DisplayName("registered over the form, visible over the API — the view layer is not load-bearing")
 	void a_form_registration_is_visible_over_the_api() throws Exception {
 		this.mvc.perform(CustomerScreenTest.registration("ada").with(csrf())).andExpect(status().is3xxRedirection());

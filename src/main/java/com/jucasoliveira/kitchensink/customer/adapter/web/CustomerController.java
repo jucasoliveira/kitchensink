@@ -1,18 +1,22 @@
 package com.jucasoliveira.kitchensink.customer.adapter.web;
 
 import org.springframework.context.annotation.Profile;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.ResponseStatus;
 
 import com.jucasoliveira.kitchensink.customer.application.CustomerRegistration;
+import com.jucasoliveira.kitchensink.customer.application.DuplicateAccountException;
 import com.jucasoliveira.kitchensink.customer.application.RegisterCustomerCommand;
 import com.jucasoliveira.kitchensink.customer.domain.Address;
 import com.jucasoliveira.kitchensink.customer.domain.ContactInfo;
 
 import jakarta.validation.Valid;
 
+import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -43,6 +47,12 @@ public class CustomerController {
         }
         registration.register(command);
         return "redirect:/customers";
+    }
+
+    @ExceptionHandler(DuplicateAccountException.class)
+    @ResponseStatus(HttpStatus.CONFLICT)
+    String duplicateAccount() {
+        return "customers/duplicate-account";
     }
 
     private String page(Model model, RegisterCustomerCommand command) {

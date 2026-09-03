@@ -9,7 +9,6 @@ import com.jucasoliveira.kitchensink.customer.domain.AccountStatus;
 import com.jucasoliveira.kitchensink.customer.domain.Address;
 import com.jucasoliveira.kitchensink.customer.domain.ContactInfo;
 import com.jucasoliveira.kitchensink.customer.domain.Customer;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
@@ -38,10 +37,10 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
  * exclude them there ({@code -DexcludedGroups=parity}) with nothing else in {@code application}
  * to make up the branches. {@link #equal_passwords_are_not_equal_at_rest()} pins the hashing
  * deviation, and {@link #a_duplicate_user_id_is_rejected_not_silently_overwritten()} pins the
- * duplicate-account rule. That one is {@code @Disabled} rather than left red:
- * {@link CustomerRegistration#register} does not check for an existing user id yet, so it fails
- * until Issue 4.4 (#25) adds the rejection — re-enable it then, so it stops being a pinned
- * intention and starts being the parity gate.
+ * duplicate-account rule. That one was pinned {@code @Disabled} by 2.2 until Issue 4.4 (#25)
+ * added the rejection; it is now live. The service's check-then-act leaves a race, and the
+ * store closes it by refusing a second insert on the same {@code _id} —
+ * {@code CustomerMongoRoundTripTest} owns that half of the rule.
  */
 class CustomerRegistrationTest {
 
@@ -95,8 +94,6 @@ class CustomerRegistrationTest {
 
 	@Test
 	@Tag("parity")
-	@Disabled("pinned ahead of Issue 4.4 (#25) - CustomerRegistration.register() does not reject "
-			+ "a duplicate user id yet, so this fails until that lands. Re-enable then.")
 	@DisplayName("CreateUserEJBAction.java:89-100 — a second registration with an existing user id is rejected, not silently overwritten")
 	void a_duplicate_user_id_is_rejected_not_silently_overwritten() {
 		// Legacy: SignOnEJB.createUser is a CMP entity create keyed on userName
@@ -109,7 +106,9 @@ class CustomerRegistrationTest {
 		ContactInfo impostor = new ContactInfo("Not", "Ada", "029 2018 0000", "impostor@example.com", ADDRESS);
 		assertThatThrownBy(
 				() -> this.registration.register(new RegisterCustomerCommand("ada", "different-password", impostor)))
-			.isInstanceOf(RuntimeException.class);
+			.isInstanceOf(DuplicateAccountException.class)
+			.extracting(taken -> ((DuplicateAccountException) taken).userId())
+			.isEqualTo("ada");
 
 		// The original account survives untouched: still Ada's contact info, still the first password.
 		Customer stillAda = this.customers.findByUserId("ada").orElseThrow();
@@ -124,7 +123,11 @@ class CustomerRegistrationTest {
 		private final Map<String, Customer> byUserId = new HashMap<>();
 
 		@Override
-		public Customer save(Customer customer) {
+		public Customer add(Customer customer) {
+			// put(), not putIfAbsent(): the fake keeps save-or-replace semantics on purpose, so
+			// that the duplicate test below fails if the rule is ever moved out of
+			// CustomerRegistration and into the adapter. A fake that enforced the rule itself
+			// would pass whether or not the service still checked.
 			this.byUserId.put(customer.userId(), customer);
 			return customer;
 		}
