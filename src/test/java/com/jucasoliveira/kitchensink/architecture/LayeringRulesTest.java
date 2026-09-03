@@ -125,11 +125,13 @@ class LayeringRulesTest {
 	/**
 	 * Symmetric to the above; stated separately so a failure names the direction that broke.
 	 *
-	 * <p>This is the one rule allowed to match nothing. Issue 1.10 turned {@code failOnEmptyShould}
-	 * back on ({@code src/test/resources/archunit.properties}), and there is no
-	 * {@code adapter.persistence.jpa} package until 3.3 / 4.6 write it - so until then the that-clause
-	 * is legitimately empty. When that package appears, delete the {@code allowEmptyShould} line: from
-	 * then on an empty match here means the adapter was renamed and this rule stopped guarding it.
+	 * <p>This rule used to carry {@code allowEmptyShould(true)}, and that exemption was always
+	 * meant to be temporary: issue 1.10 turned {@code failOnEmptyShould} back on
+	 * ({@code src/test/resources/archunit.properties}) at a point when no
+	 * {@code adapter.persistence.jpa} package existed for the that-clause to match. Issue 3.3
+	 * wrote that package, so the exemption is gone as the comment there instructed. From here on
+	 * an empty match means what it should mean - the JPA adapter was renamed or moved and this
+	 * rule stopped guarding anything. (4.6 adds the customer half; this rule already covers it.)
 	 */
 	@ArchTest
 	static final ArchRule the_jpa_adapter_does_not_know_the_mongo_one = noClasses().that()
@@ -137,8 +139,7 @@ class LayeringRulesTest {
 		.should()
 		.dependOnClassesThat()
 		.resideInAPackage(MONGO_ADAPTER)
-		.because("ADR-0005 §3-4: two adapters behind one port, selected by profile")
-		.allowEmptyShould(true);
+		.because("ADR-0005 §3-4: two adapters behind one port, selected by profile");
 
 	/**
 	 * Store types stay in their adapter. This is the rule that keeps {@code @Document} and the

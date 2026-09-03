@@ -107,10 +107,16 @@ classes you can either use `ArchRule.allowEmptyShould(true)` on a single rule or
 configuration property `archRule.failOnEmptyShould = false` to change the behavior globally.
 ```
 
-That rule is legitimately empty — there is no JPA adapter package until 3.3 / 4.6 — so it now
-carries `.allowEmptyShould(true)` with a comment dated to those issues. The other fifteen rules are
-no longer exempt. `RulesCanFailTest.empty_rules_fail_by_default` pins the property so the blanket
-exemption cannot quietly come back.
+That rule was legitimately empty when 1.10 landed — there was no `adapter.persistence.jpa` package
+until 3.3 — so it carried `.allowEmptyShould(true)` with a comment dated to that issue. **Issue 3.3
+wrote the package and the exemption came off**, which is the outcome the comment asked for: from
+here on an empty match means the adapter was renamed or moved and the rule stopped guarding
+anything. No rule is exempt now. `RulesCanFailTest.empty_rules_fail_by_default` pins the property so
+the blanket exemption cannot quietly come back.
+
+The rule earned its keep immediately. Its symmetric twin, `jpa_types_stay_in_the_jpa_adapter`, was
+the only gate to catch a JPA `@Embeddable` that had been written into the `mongo` package during
+3.3 — it compiled, it was reachable, and nothing else in the build would have noticed.
 
 **Live drill, if the panel wants one:** add `import org.springframework.stereotype.Component;` and
 `@Component` to `customer/domain/Customer.java`, run
@@ -217,7 +223,7 @@ All of it is test-side; `src/main` is untouched.
 | Change | Why |
 | --- | --- |
 | `archunit.properties`: `failOnEmptyShould=true` | The 1.2 exemption had outlived its reason; a rule matching nothing is now an error again |
-| `LayeringRulesTest.the_jpa_adapter_does_not_know_the_mongo_one`: `.allowEmptyShould(true)` | The one rule that is legitimately empty until 3.3 / 4.6, exempted on the rule with the reason beside it |
+| `LayeringRulesTest.the_jpa_adapter_does_not_know_the_mongo_one`: `.allowEmptyShould(true)` | The one rule that was legitimately empty until 3.3, exempted on the rule with the reason beside it — **removed when 3.3 wrote the package** |
 | `architecture/RulesCanFailTest` + `architecture/fixtures/leaky/**` | The rules proven to bite, permanently, against test-only fixtures |
 | `TestcontainersHarnessTest` | The context proven to be connected to the container it started, on the image compose names, as a replica set |
 | This page; `README.md` §"Running the tests" | The drills, so the proof is repeatable in the playback |

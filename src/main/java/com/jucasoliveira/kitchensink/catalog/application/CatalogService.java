@@ -7,7 +7,6 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.StringTokenizer;
 
-import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
 
 import com.jucasoliveira.kitchensink.catalog.domain.Category;
@@ -15,7 +14,6 @@ import com.jucasoliveira.kitchensink.catalog.domain.Item;
 import com.jucasoliveira.kitchensink.catalog.domain.Product;
 
 @Service
-@Profile("mongo")
 public class CatalogService {
 
     private final CatalogRepository catalog;

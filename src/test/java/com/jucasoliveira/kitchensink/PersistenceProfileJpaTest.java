@@ -6,11 +6,14 @@ import java.util.Objects;
 
 import javax.sql.DataSource;
 
+import com.jucasoliveira.kitchensink.catalog.application.CatalogRepository;
+import com.jucasoliveira.kitchensink.catalog.application.CatalogService;
 import com.jucasoliveira.kitchensink.customer.application.CustomerRegistration;
 import com.jucasoliveira.kitchensink.customer.application.CustomerRepository;
 import com.mongodb.client.MongoClient;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.aop.framework.AopProxyUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
@@ -34,10 +37,13 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * {@code jpa} there is no MongoDB, no Docker daemon and no container to wait for. If that import
  * ever becomes necessary to keep this green, the switch has stopped being a switch.
  *
- * <p>There is no JPA adapter yet — 3.3 and 4.6 write those — so what is proven here is the
- * foundation they will land on: an H2 datasource, a Hibernate {@code EntityManagerFactory} with
- * an empty persistence unit, and a health endpoint that reports {@code db} rather than
- * {@code mongo}. The mirror image is {@link PersistenceProfileMongoTest}.
+ * <p>Issue 3.3 has since landed the catalog's JPA adapter, so the persistence unit is no longer
+ * empty and the catalog port resolves under both profiles; the customer port still does not, and
+ * 4.6 is where that closes. What this class proves is the switch itself: an H2 datasource, a
+ * Hibernate {@code EntityManagerFactory}, no Mongo stack at all, and a health endpoint that
+ * reports {@code db} rather than {@code mongo}. The mirror image is
+ * {@link PersistenceProfileMongoTest}; that the two stores actually answer the same questions is
+ * {@code CatalogRepositoryContract}'s job, not this one's.
  */
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -110,6 +116,24 @@ class PersistenceProfileJpaTest {
 			.filter(Objects::nonNull)
 			.map(Class::getPackageName))
 			.noneMatch(pkg -> pkg.startsWith("com.jucasoliveira.kitchensink.customer.adapter.web"));
+	}
+
+	@Test
+	@DisplayName("the catalog port has exactly one adapter, and under jpa it is the JPA one — issue 3.3")
+	void the_catalog_port_is_bound_to_the_jpa_adapter() {
+		// The customer gap above is what a half-finished switch looks like; this is what a finished
+		// one looks like. One port, two adapters, and the only thing deciding which store answers
+		// is --spring.profiles.active. That the two adapters answer the *same* questions is proven
+		// by CatalogRepositoryContract, which runs once per profile; this only pins the wiring.
+		// Unwrapped in case @Transactional's proxy sits in front of the bean.
+		assertThat(this.context.getBeanNamesForType(CatalogRepository.class)).hasSize(1);
+		Class<?> adapter = AopProxyUtils.ultimateTargetClass(this.context.getBean(CatalogRepository.class));
+		assertThat(adapter.getPackageName())
+			.isEqualTo("com.jucasoliveira.kitchensink.catalog.adapter.persistence.jpa");
+		// 3.3 also took @Profile("mongo") off CatalogService: with an adapter on both sides of the
+		// port, the guard had nothing left to guard, and the service is store-agnostic by
+		// construction (LayeringRulesTest.the_application_layer_does_not_know_its_adapters).
+		assertThat(this.context.getBeanNamesForType(CatalogService.class)).hasSize(1);
 	}
 
 	@Test
