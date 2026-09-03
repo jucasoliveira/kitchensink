@@ -33,13 +33,16 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
  * BCrypt one at its cheapest cost factor, because a fake encoder would prove nothing about the
  * property under test.
  *
- * <p>Issue 2.2 — tagged {@code parity}: the BCrypt tests above pin the hashing deviation, and
- * {@link #a_duplicate_user_id_is_rejected_not_silently_overwritten()} pins the duplicate-account
- * rule. It is {@code @Disabled} rather than left red: {@link CustomerRegistration#register} does
- * not check for an existing user id yet, so it fails until Issue 4.4 (#25) adds the rejection —
- * re-enable it then, so it stops being a pinned intention and starts being the parity gate.
+ * <p>Issue 2.2: {@code @Tag("parity")} sits on two methods, not the class - the other two are this
+ * service's main coverage in the {@code build} job's JaCoCo bundle, and tagging the class would
+ * exclude them there ({@code -DexcludedGroups=parity}) with nothing else in {@code application}
+ * to make up the branches. {@link #equal_passwords_are_not_equal_at_rest()} pins the hashing
+ * deviation, and {@link #a_duplicate_user_id_is_rejected_not_silently_overwritten()} pins the
+ * duplicate-account rule. That one is {@code @Disabled} rather than left red:
+ * {@link CustomerRegistration#register} does not check for an existing user id yet, so it fails
+ * until Issue 4.4 (#25) adds the rejection — re-enable it then, so it stops being a pinned
+ * intention and starts being the parity gate.
  */
-@Tag("parity")
 class CustomerRegistrationTest {
 
 	static final Address ADDRESS = new Address("1 Main St", null, "London", "LDN", "N1 1AA", "GB");
@@ -66,6 +69,7 @@ class CustomerRegistrationTest {
 	}
 
 	@Test
+	@Tag("parity")
 	@DisplayName("two customers with the same password do not share a hash")
 	void equal_passwords_are_not_equal_at_rest() {
 		// Under UserEJB.java:88 every "j2ee" in the seed (Populate-UTF8.xml:74,77,80,83) was the
@@ -90,6 +94,7 @@ class CustomerRegistrationTest {
 	}
 
 	@Test
+	@Tag("parity")
 	@Disabled("pinned ahead of Issue 4.4 (#25) - CustomerRegistration.register() does not reject "
 			+ "a duplicate user id yet, so this fails until that lands. Re-enable then.")
 	@DisplayName("CreateUserEJBAction.java:89-100 — a second registration with an existing user id is rejected, not silently overwritten")

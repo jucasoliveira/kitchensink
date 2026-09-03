@@ -51,11 +51,13 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * does, because the point is that the chain, the user lookup, the hashing and the store are the
  * <em>production</em> wiring — nothing here is stubbed.
  *
- * <p>Issue 2.2 — tagged {@code parity}: this class is the sign-on success/failure half of the
- * in-scope business rules, and the last two tests below also carry the BCrypt deviation (finding
- * #1) that the plaintext {@code UserEJB.matchPassword} equality could never have shown.
+ * <p>Issue 2.2: three methods below carry {@code @Tag("parity")} rather than the class, so the
+ * rest keep running - and counting toward domain/application coverage - in the {@code build} job.
+ * {@link #an_unknown_user_cannot_sign_in()} and {@link #a_registered_customer_can_sign_in()} are
+ * the sign-on success/failure half of the in-scope business rules;
+ * {@link #the_password_never_reaches_the_store()} is the BCrypt deviation (finding #1) the
+ * plaintext {@code UserEJB.matchPassword} equality could never have shown.
  */
-@Tag("parity")
 @SpringBootTest
 @AutoConfigureMockMvc
 @Import(TestcontainersConfiguration.class)
@@ -92,6 +94,7 @@ class SignOnTest {
 	}
 
 	@Test
+	@Tag("parity")
 	@DisplayName("SignOnEJB.java:75-77 — an unknown user fails to sign in, and is told no more than that")
 	void an_unknown_user_cannot_sign_in() throws Exception {
 		// The legacy's FinderException became "return false"; here UsernameNotFoundException is
@@ -102,6 +105,7 @@ class SignOnTest {
 	}
 
 	@Test
+	@Tag("parity")
 	@DisplayName("SignOnEJB.java:71-74 — a registered customer signs in with the password they registered")
 	void a_registered_customer_can_sign_in() throws Exception {
 		register();
@@ -122,6 +126,7 @@ class SignOnTest {
 	}
 
 	@Test
+	@Tag("parity")
 	@DisplayName("finding #1 — what reaches the database is a BCrypt hash, and the password is nowhere in the document")
 	void the_password_never_reaches_the_store() {
 		register();
