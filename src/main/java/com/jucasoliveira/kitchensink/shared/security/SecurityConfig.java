@@ -16,7 +16,7 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.ignoringRequestMatchers("/api/**"))
                 .authorizeHttpRequests(
                         a -> a.requestMatchers("/", "/actuator/health", "/customers", "/api/customers", "/catalog",
-                                "/catalog/**", "/css/**", "/images/**").permitAll()
+                                "/catalog/**", "/css/**", "/images/**", "/api/catalog/**").permitAll()
                                 .anyRequest().authenticated())
                 .formLogin(Customizer.withDefaults()).build();
     }
