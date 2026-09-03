@@ -37,12 +37,17 @@ class LayeringRulesTest {
 	private static final String JPA_ADAPTER = "..adapter.persistence.jpa..";
 
 	/**
-	 * The 1.1 skeleton spike ({@code Member}, {@code MemberRepository}, {@code HomeController})
-	 * sits in the root package and is deliberately framework-soaked — it exists to prove the stack
-	 * carries, and {@code SkeletonSpikeTest} is the evidence for it. It is throwaway and E4
-	 * replaces it. Matching the package exactly, with no trailing "..", excludes those classes and
-	 * nothing else. ({@code SecurityConfig} started here too; Issue 1.8 moved it to
-	 * {@code shared.security}, where the exemptions below already expected it.)
+	 * The 1.1 skeleton spike ({@code Member}, {@code MemberRepository}) sits in the root package
+	 * and is deliberately framework-soaked — it exists to prove the stack carries, and
+	 * {@code SkeletonSpikeTest} is the evidence for it. It is throwaway and E4 replaces it.
+	 * Matching the package exactly, with no trailing "..", excludes those classes and nothing else.
+	 *
+	 * <p>Two of the original three have since left the exemption on their own terms.
+	 * {@code SecurityConfig} started here; Issue 1.8 moved it to {@code shared.security}, where the
+	 * exemptions below already expected it. {@code HomeController} is still here but is no longer
+	 * throwaway: it stopped rendering the spike's own page and became the store front, one line
+	 * redirecting "/" to the catalog. It stays in the root package because it belongs to no
+	 * bounded context — it names which context owns the front door, and owns nothing itself.
 	 */
 	private static final String SKELETON_SPIKE = Contexts.ROOT;
 
