@@ -1,0 +1,7 @@
+.petstore, .petstore_title, .petstore_listing, .petstore_form, .petstore_footer {
+    font-family: Helvetica, Arial, sans-serif;
+}
+.petstore { font-size: small; }
+.petstore_title { font-weight: bold; }
+.petstore_footer, .petstore_listing, .petstore_form { font-size: x-small; }
+.ps-columns { display: grid; grid-template-columns: 20% 60%; gap: 1rem; }

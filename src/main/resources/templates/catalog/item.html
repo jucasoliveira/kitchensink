@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" th:replace="~{layout :: page('Item', ~{::main})}">
+<body>
+<main>
+  <p class="petstore_title">
+    <span th:text="${item.attributes()}">Large Cuddly</span>
+    <span th:text="${item.productName()}">Angelfish</span>
+  </p>
+  <img th:src="@{/images/{f}(f=${item.image()})}" th:alt="${item.productName()}">
+  <p class="petstore"><b>List Price:</b> <span th:text="${item.listPrice()}">$0.00</span></p>
+  <p class="petstore"><b>Your Price:</b> <span th:text="${item.unitCost()}">$0.00</span></p>
+  <p th:text="${item.description()}">description</p>
+</main>
+</body>
+</html>
