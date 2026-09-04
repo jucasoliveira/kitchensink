@@ -15,7 +15,6 @@ import jakarta.validation.Valid;
 
 @Service
 @Validated
-@org.springframework.context.annotation.Profile("mongo")
 public class CustomerRegistration {
     private final CustomerRepository customers;
     private final PasswordEncoder encoder;
