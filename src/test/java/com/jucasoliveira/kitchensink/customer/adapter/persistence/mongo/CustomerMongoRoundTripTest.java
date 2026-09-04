@@ -97,7 +97,7 @@ class CustomerMongoRoundTripTest extends CustomerRepositoryContract {
 		// null columns, which Spring Data writes as {} because it omits every null component. An
 		// absent key would mean "no card row at all", which is not what the legacy did — and is
 		// exactly what a mapper that treated CreditCard.EMPTY as a null would produce.
-		Document card = account.get("cardDocument", Document.class);
+		Document card = account.get("creditCard", Document.class);
 		assertThat(card).isNotNull().isEmpty();
 
 		// And there is no second, third or fourth collection to join against. The database is
