@@ -1,7 +1,227 @@
-.petstore, .petstore_title, .petstore_listing, .petstore_form, .petstore_footer {
-    font-family: Helvetica, Arial, sans-serif;
+/*
+ * Issue 8.1 — the stylesheet layout.html has always linked and that has never existed.
+ *
+ * `<link rel="stylesheet" th:href="@{/css/petstore.css}">` was in layout.html from 3.5 onward and
+ * src/main/resources/static held only images, so every page 404'd its stylesheet and rendered as
+ * unstyled HTML. /css/** was even in SecurityConfig's permit list, pointing at nothing.
+ *
+ * The class names are the legacy's own — `petstore`, `petstore_title`, `petstore_listing` appear
+ * throughout banner.jsp, sidebar.jsp and create_customer.jsp — but the rules are not: the J2EE 1.3.1
+ * source tree ships no .css file at all, so there is nothing to port. This keeps the names, and the
+ * 2003 look (the parrot, the flags, a light ground), while doing the layout with grid and flex
+ * rather than the nested tables the JSPs used.
+ */
+
+:root {
+    --ps-ink: #1a1a1a;
+    --ps-muted: #5a5f66;
+    --ps-rule: #d6d9de;
+    --ps-ground: #fff;
+    --ps-panel: #f6f7f9;
+    --ps-accept: #2d6a3f;
+    --ps-reject: #a3231c;
+    --ps-link: #1a4f8a;
 }
-.petstore { font-size: small; }
-.petstore_title { font-weight: bold; }
-.petstore_footer, .petstore_listing, .petstore_form { font-size: x-small; }
-.ps-columns { display: grid; grid-template-columns: 20% 60%; gap: 1rem; }
+
+body.petstore {
+    margin: 0;
+    padding: 0 1.5rem 3rem;
+    background: var(--ps-ground);
+    color: var(--ps-ink);
+    font: 15px/1.55 "Helvetica Neue", Helvetica, Arial, sans-serif;
+}
+
+a { color: var(--ps-link); }
+a:hover { text-decoration: none; }
+
+/* ---- banner ------------------------------------------------------------ */
+
+[data-slot="banner"] > div {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+    padding: 0.75rem 0;
+    border-bottom: 2px solid var(--ps-rule);
+}
+
+[data-slot="banner"] img[alt*="logo"] { height: 64px; width: auto; }
+[data-slot="banner"] form { margin: 0; }
+
+/* The locale flags, as a group. This was `> span:last-child`, which matched only the LAST flag
+   because th:each emits one span per locale — so `margin-left:auto` flung the Chinese flag to the
+   far edge on its own while the other two stayed put. One wrapper, one rule. */
+.ps-locales { margin-left: auto; display: inline-flex; gap: 0.4rem; align-items: center; }
+.ps-locales img { height: 16px; vertical-align: middle; }
+
+/* banner.jsp:57-60 — the keywords box, on every page. */
+.ps-search { display: flex; gap: 0.4rem; align-items: center; }
+.ps-search input { width: 12rem; }
+.ps-search button {
+    font: inherit;
+    padding: 0.35rem 0.7rem;
+    border: 1px solid var(--ps-rule);
+    border-radius: 4px;
+    background: var(--ps-panel);
+    color: inherit;
+    cursor: pointer;
+}
+.ps-search button:hover { background: #e9ecf1; }
+
+/* A label that is present for a screen reader and absent on screen — banner.jsp had none at all,
+   and an unlabelled search box is the same accessibility problem as the unlabelled register form. */
+.ps-visually-hidden {
+    position: absolute;
+    width: 1px; height: 1px;
+    padding: 0; margin: -1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+[data-slot="banner"] button {
+    font: inherit;
+    color: var(--ps-link);
+    background: none;
+    border: 0;
+    padding: 0;
+    cursor: pointer;
+    text-decoration: underline;
+}
+
+/* ---- two-column body --------------------------------------------------- */
+
+.ps-columns {
+    display: grid;
+    grid-template-columns: 190px minmax(0, 1fr);
+    gap: 2.5rem;
+    align-items: start;
+    padding: 1.5rem 0;
+}
+
+@media (max-width: 720px) {
+    .ps-columns { grid-template-columns: 1fr; gap: 1.25rem; }
+}
+
+/* ---- sidebar ----------------------------------------------------------- */
+
+.petstore_title {
+    margin: 0 0 0.5rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    font-size: 0.78rem;
+    color: var(--ps-muted);
+}
+
+[data-slot="sidebar"] ul { list-style: none; margin: 0; padding: 0; }
+[data-slot="sidebar"] li { border-bottom: 1px solid var(--ps-rule); }
+[data-slot="sidebar"] li a { display: block; padding: 0.45rem 0; text-decoration: none; }
+[data-slot="sidebar"] li a:hover { text-decoration: underline; }
+
+/* The unseeded-catalogue hint. Muted, not an error — an empty store is a normal state. */
+[data-slot="sidebar"] > p:last-child:not(.petstore_title) {
+    color: var(--ps-muted);
+    font-size: 0.85rem;
+    font-style: italic;
+}
+
+/* ---- forms ------------------------------------------------------------- */
+
+fieldset {
+    border: 1px solid var(--ps-rule);
+    border-radius: 6px;
+    padding: 1rem 1.25rem 1.25rem;
+    margin: 0 0 1.25rem;
+    background: var(--ps-panel);
+}
+
+legend {
+    padding: 0 0.4rem;
+    font-weight: 700;
+    font-size: 0.9rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--ps-muted);
+}
+
+.ps-fields {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+    gap: 0.85rem 1.25rem;
+}
+
+.ps-field { display: flex; flex-direction: column; gap: 0.25rem; }
+.ps-field label { font-size: 0.82rem; font-weight: 600; color: var(--ps-muted); }
+
+input[type="text"], input[type="password"], input[type="email"], select {
+    font: inherit;
+    padding: 0.4rem 0.5rem;
+    border: 1px solid var(--ps-rule);
+    border-radius: 4px;
+    background: var(--ps-ground);
+    color: inherit;
+}
+
+input:focus, select:focus { outline: 2px solid var(--ps-link); outline-offset: 1px; }
+
+button[type="submit"], input[type="submit"] {
+    font: inherit;
+    font-weight: 600;
+    padding: 0.5rem 1.1rem;
+    border: 1px solid var(--ps-accept);
+    border-radius: 4px;
+    background: var(--ps-accept);
+    color: #fff;
+    cursor: pointer;
+}
+
+button[type="submit"]:hover, input[type="submit"]:hover { filter: brightness(1.12); }
+
+/* ---- validation -------------------------------------------------------- */
+
+/* CustomerHTMLAction.java:185-190 collected missing fields and re-rendered the screen; the
+   equivalent here is BindingResult, and this is what it looks like. */
+.ps-errors {
+    margin: 0 0 1.25rem;
+    padding: 0.75rem 1rem 0.75rem 2.25rem;
+    border: 1px solid var(--ps-reject);
+    border-left-width: 4px;
+    border-radius: 4px;
+    background: #fdf3f2;
+    color: var(--ps-reject);
+}
+
+/* ---- tables ------------------------------------------------------------ */
+
+table { border-collapse: collapse; width: 100%; }
+th, td { text-align: left; padding: 0.45rem 0.75rem; border-bottom: 1px solid var(--ps-rule); }
+th { font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--ps-muted); }
+.petstore_listing { font-size: 0.92rem; }
+
+/* ---- footer ------------------------------------------------------------ */
+
+[data-slot="footer"] {
+    border-top: 1px solid var(--ps-rule);
+    padding-top: 0.9rem;
+    font-size: 0.82rem;
+    color: var(--ps-muted);
+}
+
+/* ---- main.screen -------------------------------------------------------- */
+
+/* main.jsp's six-hotspot image map became five links (decisions/catalog-screens.md). They sit
+   under the hero image and repeat the sidebar, which is what the legacy did too — the image map
+   and the sidebar both linked the five categories. Styled as a row of buttons rather than a
+   bulleted list so it reads as the hotspots' replacement rather than as a duplicate menu. */
+.ps-hotspots { list-style: none; display: flex; flex-wrap: wrap; gap: 0.5rem; padding: 0; margin: 1rem 0 0; }
+.ps-hotspots a {
+    display: inline-block;
+    padding: 0.4rem 0.9rem;
+    border: 1px solid var(--ps-rule);
+    border-radius: 999px;
+    background: var(--ps-panel);
+    text-decoration: none;
+}
+.ps-hotspots a:hover { background: #e9ecf1; }

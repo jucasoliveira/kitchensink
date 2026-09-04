@@ -4,7 +4,7 @@
 <body>
 <main>
   <img th:src="@{/images/splash.gif}" alt="Pet Selection Map" width="350" height="355">
-  <ul class="petstore_listing">
+  <ul class="ps-hotspots">
     <li th:each="c : ${categories}">
       <a th:href="@{/catalog/categories/{id}(id=${c.id()})}" th:text="${c.name()}">Fish</a>
     </li>

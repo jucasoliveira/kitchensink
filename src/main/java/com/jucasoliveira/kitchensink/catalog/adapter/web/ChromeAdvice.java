@@ -1,5 +1,6 @@
 package com.jucasoliveira.kitchensink.catalog.adapter.web;
 
+import java.security.Principal;
 import java.util.List;
 import java.util.Locale;
 
@@ -35,6 +36,25 @@ public class ChromeAdvice {
         String key = CatalogController.localeKey(locale);
         return this.catalog.browseCategories(key, 0, SIDEBAR_COUNT).contents()
                 .stream().map(category -> CategoryView.of(category, key)).toList();
+    }
+
+    /**
+     * {@code banner.jsp:65-68} — the banner chose between "Sign out" and "Sign in" on the
+     * {@code ${j_signon}} session flag that {@code SignOnFilter} maintained by hand.
+     *
+     * <p>{@code Principal} rather than {@code Authentication}: with anonymous authentication
+     * enabled an anonymous request still carries an {@code AnonymousAuthenticationToken} whose
+     * {@code isAuthenticated()} returns <em>true</em>, so the obvious check would show "Sign out"
+     * to everyone. {@code HttpServletRequest.getUserPrincipal()} is null for anonymous, which is
+     * the distinction the banner actually needs — the same mechanism {@code CustomerController}
+     * uses to decide whether to populate the member table.
+     *
+     * <p>Not {@code sec:authorize}: that needs {@code thymeleaf-extras-springsecurity}, and a
+     * dependency is a poor trade for one null check (AGENTS.md §2).
+     */
+    @ModelAttribute("signedOnAs")
+    String signedOnAs(Principal principal) {
+        return principal == null ? null : principal.getName();
     }
 
     /** banner.jsp:79-80 encodeRequestParameters — the flags returned you to the screen you were on. */

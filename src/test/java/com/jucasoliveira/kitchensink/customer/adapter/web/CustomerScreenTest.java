@@ -120,6 +120,53 @@ class CustomerScreenTest {
 	}
 
 	@Test
+	@DisplayName("create_customer.jsp — every input carries a <label for>, with the legacy screen's own text")
+	void every_field_is_labelled() throws Exception {
+		// The form had twelve unlabelled boxes in a row: unusable with a screen reader and barely
+		// usable without one. The `for` attribute is the assertion, not the visible text — a label
+		// that does not point at its input is decoration.
+		String page = this.mvc.perform(get("/customers")).andExpect(status().isOk())
+			.andReturn().getResponse().getContentAsString();
+
+		for (String id : new String[] { "userId", "password", "givenName", "familyName", "telephone", "email",
+				"streetName1", "streetName2", "city", "state", "zipCode", "country" }) {
+			assertThat(page).as("<label for=\"%s\">", id).contains("for=\"" + id + "\"");
+			assertThat(page).as("input id=%s", id).contains("id=\"" + id + "\"");
+		}
+
+		// The text is create_customer.jsp's, so the two screens read the same.
+		assertThat(page).contains("Your Account Information", "Contact Information", "First Name", "Last Name",
+				"State/Province", "Postal Code", "Telephone Number");
+	}
+
+	@Test
+	@DisplayName("create_customer.jsp collected a credit card; this form deliberately does not")
+	void the_form_does_not_collect_a_credit_card() throws Exception {
+		// CustomerHTMLAction.java:96 called extractCreditCard(request), reading credit_card_number,
+		// credit_card_type and credit_card_expiry_month/year off the registration form. This is
+		// therefore a deviation from the legacy screen rather than a gap in it, and it is asserted
+		// so it stays a decision: storing a card number is not something this slice should do, and
+		// AccountEJB.ejbPostCreate:87-89 already created the card empty, so CreditCard.EMPTY is a
+		// state the legacy itself produced.
+		String page = this.mvc.perform(get("/customers")).andExpect(status().isOk())
+			.andReturn().getResponse().getContentAsString();
+
+		assertThat(page).doesNotContain("credit_card", "cardNumber", "Credit Card");
+	}
+
+	@Test
+	@DisplayName("layout.html links /css/petstore.css, and the file it links actually exists")
+	void the_stylesheet_is_served() throws Exception {
+		// The link tag was in layout.html from 3.5 and src/main/resources/static held only images,
+		// so every page 404'd its stylesheet and rendered unstyled. Asserting the link alone would
+		// have passed throughout; the second request is the one that matters.
+		assertThat(this.mvc.perform(get("/customers")).andReturn().getResponse().getContentAsString())
+			.contains("/css/petstore.css");
+
+		this.mvc.perform(get("/css/petstore.css")).andExpect(status().isOk());
+	}
+
+	@Test
 	@DisplayName("CustomerHTMLAction.java:185-190 — a missing last name re-renders the form with the violation, and stores nothing")
 	void a_missing_field_is_reported_on_the_form() throws Exception {
 		// Legacy: missingFields.add("Last Name") → MissingFormDataException → same screen again.

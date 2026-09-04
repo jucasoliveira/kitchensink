@@ -4,31 +4,114 @@
 <body>
 <main>
 
-<form th:action="@{/customers}" th:object="${command}" method="post">
-     <ul th:if="${#fields.hasErrors('*')}">
+  <!--/*
+       create_customer.jsp — the labels below are the legacy screen's own text ("Your Account
+       Information", "Contact Information", "First Name", "State/Province", "Postal Code",
+       "Telephone Number"), so the two screens read the same even though the markup does not.
+
+       Every input had a <label for>, which this form had lost: twelve unlabelled boxes in a row,
+       unusable with a screen reader and barely usable without one. The ids are the binding paths,
+       which keeps label/field/violation on one name.
+
+       NOT here, deliberately: credit_card_number, credit_card_type and credit_card_expiry_*.
+       create_customer.jsp did collect them (CustomerHTMLAction.java:96 extractCreditCard) and this
+       form does not. Storing a card number is not something this slice should do, nothing in the
+       delivered scope reads one, and AccountEJB.ejbPostCreate:87-89 already created the card empty
+       — so an empty CreditCard is a state the legacy itself produced. That is a deliberate
+       deviation, and it is listed as one.
+  */-->
+
+  <form th:action="@{/customers}" th:object="${command}" method="post">
+
+    <div class="ps-errors" th:if="${#fields.hasErrors('*')}">
+      <ul>
         <li th:each="e : ${#fields.detailedErrors()}" th:text="${e.fieldName + ': ' + e.message}"></li>
-    </ul>
-    <input th:field="*{userId}"/>
-    <input type="password" th:field="*{password}"/>
-    <input th:field="*{contactInfo.givenName}"/>
-    <input th:field="*{contactInfo.familyName}"/>
-    <input th:field="*{contactInfo.telephone}"/>
-    <input th:field="*{contactInfo.email}"/>
-    <input th:field="*{contactInfo.address.streetName1}"/>
-    <input th:field="*{contactInfo.address.streetName2}"/>
-    <input th:field="*{contactInfo.address.city}"/>
-    <input th:field="*{contactInfo.address.state}"/>
-    <input th:field="*{contactInfo.address.zipCode}"/>
-    <input th:field="*{contactInfo.address.country}"/>
-    <button type="submit">Register</button>
-</form>
-<table>
-    <tr th:each="c : ${customers}">
-        <td th:text="${c.userId()}"></td>
-        <td th:text="${c.account().contactInfo().givenName() + ' ' + c.account().contactInfo().familyName()}"></td>
-        <td th:text="${c.account().contactInfo().address().city()}"></td>
+      </ul>
+    </div>
+
+    <fieldset>
+      <legend th:text="#{form.account.legend}">Your Account Information</legend>
+      <div class="ps-fields">
+        <div class="ps-field">
+          <label for="userId" th:text="#{form.userId}">User Name</label>
+          <input id="userId" type="text" th:field="*{userId}" autocomplete="username">
+        </div>
+        <div class="ps-field">
+          <label for="password" th:text="#{form.password}">Password</label>
+          <input id="password" type="password" th:field="*{password}" autocomplete="new-password">
+        </div>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend th:text="#{form.contact.legend}">Contact Information</legend>
+      <div class="ps-fields">
+        <div class="ps-field">
+          <label for="givenName" th:text="#{form.givenName}">First Name</label>
+          <input id="givenName" type="text" th:field="*{contactInfo.givenName}">
+        </div>
+        <div class="ps-field">
+          <label for="familyName" th:text="#{form.familyName}">Last Name</label>
+          <input id="familyName" type="text" th:field="*{contactInfo.familyName}">
+        </div>
+        <div class="ps-field">
+          <label for="telephone" th:text="#{form.telephone}">Telephone Number</label>
+          <input id="telephone" type="text" th:field="*{contactInfo.telephone}">
+        </div>
+        <div class="ps-field">
+          <label for="email" th:text="#{form.email}">E-Mail Address</label>
+          <input id="email" type="text" th:field="*{contactInfo.email}">
+        </div>
+        <div class="ps-field">
+          <label for="streetName1" th:text="#{form.streetName1}">Street Address</label>
+          <input id="streetName1" type="text" th:field="*{contactInfo.address.streetName1}">
+        </div>
+        <div class="ps-field">
+          <!--/* AddressEJB's second street line: the aggregate's only optional field. */-->
+          <label for="streetName2" th:text="#{form.streetName2}">Street Address 2</label>
+          <input id="streetName2" type="text" th:field="*{contactInfo.address.streetName2}">
+        </div>
+        <div class="ps-field">
+          <label for="city" th:text="#{form.city}">City</label>
+          <input id="city" type="text" th:field="*{contactInfo.address.city}">
+        </div>
+        <div class="ps-field">
+          <label for="state" th:text="#{form.state}">State/Province</label>
+          <input id="state" type="text" th:field="*{contactInfo.address.state}">
+        </div>
+        <div class="ps-field">
+          <label for="zipCode" th:text="#{form.zipCode}">Postal Code</label>
+          <input id="zipCode" type="text" th:field="*{contactInfo.address.zipCode}">
+        </div>
+        <div class="ps-field">
+          <!--/* create_customer.jsp used a <select> of four countries. A text field keeps the
+                 aggregate's shape honest: Address.country is a free String, not an enum, and a
+                 dropdown would imply a constraint the domain does not have. */-->
+          <label for="country" th:text="#{form.country}">Country</label>
+          <input id="country" type="text" th:field="*{contactInfo.address.country}">
+        </div>
+      </div>
+    </fieldset>
+
+    <button type="submit" th:text="#{form.register}">Register</button>
+  </form>
+
+  <!--/* The kitchensink twin's member table. Issue 4.2 made it a signed-on view: an anonymous
+         visitor needs the form above but has no business reading every shopper's name and city,
+         so CustomerController populates the model only when there is a Principal. */-->
+  <table th:if="${not #lists.isEmpty(customers)}" class="petstore_listing">
+    <tr>
+      <th th:text="#{form.userId}">User Name</th>
+      <th th:text="#{table.name}">Name</th>
+      <th th:text="#{form.city}">City</th>
     </tr>
-</table>
+    <tr th:each="c : ${customers}">
+      <td th:text="${c.userId()}"></td>
+      <td th:text="${c.account().contactInfo().givenName() + ' ' + c.account().contactInfo().familyName()}"></td>
+      <td th:text="${c.account().contactInfo().address().city()}"></td>
+    </tr>
+  </table>
+
 </main>
 </body>
 </html>
