@@ -40,7 +40,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * <p>The mapping, piece by piece:
  * <ul>
  * <li>{@code signon-config.xml:50-55} protects {@code customer.screen} → {@code /customer} is the one
- * protected URL this issue carries (4.2 does the rest of the file);</li>
+ * protected URL this issue carried; 4.2 does the rest of the file, in SignOnConfigParityTest;</li>
  * <li>{@code SignOnFilter.doFilter:142-147} forwards an anonymous request to the sign-on page →
  * the chain redirects to {@code /login};</li>
  * <li>{@code SignOnEJB.authenticate} → a {@code UserDetailsService} over the customer aggregate,
@@ -86,11 +86,20 @@ class SignOnTest {
 	}
 
 	@Test
-	@DisplayName("signon-config.xml:53 — /customer is protected, and an anonymous request is sent to sign in")
+	@DisplayName("signon-config.xml:53 — /customers/me is protected, and an anonymous request is sent to sign in")
 	void the_protected_url_redirects_an_anonymous_request_to_login() throws Exception {
 		// Not a 401 and not a 404: SignOnFilter:145 forwarded to signon.screen, and the chain
 		// redirects to its login page the same way, before any handler is looked up.
-		this.mvc.perform(get("/customer")).andExpect(status().is3xxRedirection()).andExpect(redirectedUrl("/login"));
+		//
+		// This used to ask for "/customer", which no controller maps — CustomerController is
+		// @RequestMapping("/customers"). It passed because authorization runs before handler
+		// lookup, so ANY unmapped URL redirects under anyRequest().authenticated(): it was
+		// asserting the default rather than the legacy rule it names. Issue 4.2 points it at the
+		// screen customer.screen actually became. The whole signon-config.xml set is walked by
+		// SignOnConfigParityTest.
+		this.mvc.perform(get("/customers/me"))
+			.andExpect(status().is3xxRedirection())
+			.andExpect(redirectedUrl("/login"));
 	}
 
 	@Test
