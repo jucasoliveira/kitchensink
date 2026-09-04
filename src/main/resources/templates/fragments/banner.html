@@ -1,4 +1,10 @@
 <div th:fragment="banner">
   <a th:href="@{/catalog}"><img th:src="@{/images/banner_logo.gif}" alt="Java Pet Store Demo logo"></a>
-  <a th:href="@{/customers}">Account</a>
+  <a th:href="@{/customers}" th:text="#{banner.account}">Account</a>
+  <span th:each="loc : ${ {'en_US','ja_JP','zh_CN'} }">
+    <a th:href="@{${currentPath}(locale=${loc})}">
+      <img th:src="@{/images/{f}(f=${loc.substring(3).toLowerCase()} + '_flag.gif')}"
+           th:alt="#{'banner.locale.' + ${loc}}">
+    </a>
+  </span>
 </div>

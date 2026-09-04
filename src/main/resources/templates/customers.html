@@ -1,3 +1,9 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layout :: page(#{screen.create_customer.title}, ~{::main})}">
+<body>
+<main>
+
 <form th:action="@{/customers}" th:object="${command}" method="post">
      <ul th:if="${#fields.hasErrors('*')}">
         <li th:each="e : ${#fields.detailedErrors()}" th:text="${e.fieldName + ': ' + e.message}"></li>
@@ -23,3 +29,6 @@
         <td th:text="${c.account().contactInfo().address().city()}"></td>
     </tr>
 </table>
+</main>
+</body>
+</html>

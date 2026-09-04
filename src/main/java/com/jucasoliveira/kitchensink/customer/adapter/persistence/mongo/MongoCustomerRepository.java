@@ -29,6 +29,11 @@ class MongoCustomerRepository implements CustomerRepository {
     }
 
     @Override
+    public Customer update(Customer customer) {
+        return this.documents.save(CustomerDocument.from(customer)).toDomain();
+    }
+
+    @Override
     public Optional<Customer> findByUserId(String userId) {
         return documents.findById(userId).map(CustomerDocument::toDomain);
     }

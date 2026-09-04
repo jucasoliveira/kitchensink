@@ -1,6 +1,5 @@
 package com.jucasoliveira.kitchensink.catalog.adapter.web;
 
-import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 import java.util.function.Function;
@@ -9,7 +8,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -28,9 +26,6 @@ public class CatalogController {
     /** category.jsp:71-72, product.jsp:71-72 — the <c:otherwise> reset. */
     private static final int DEFAULT_COUNT = 2;
 
-    /** sidebar.jsp:57-58. */
-    private static final int SIDEBAR_COUNT = 5;
-
     /** banner.jsp:81,92,103 — the three flags were the whole locale menu. */
     private static final Set<String> SUPPORTED = Set.of("en_US", "ja_JP", "zh_CN");
 
@@ -40,13 +35,6 @@ public class CatalogController {
 
     CatalogController(CatalogService catalog) {
         this.catalog = catalog;
-    }
-
-    @ModelAttribute("categories")
-    List<CategoryView> categories(Locale locale) {
-        String key = localeKey(locale);
-        return this.catalog.browseCategories(key, 0, SIDEBAR_COUNT).contents()
-                .stream().map(category -> CategoryView.of(category, key)).toList();
     }
 
     @GetMapping
@@ -95,7 +83,7 @@ public class CatalogController {
         return new CatalogPage<>(page.contents().stream().map(view).toList(), page.start(), page.hasNext());
     }
 
-    static String localeKey(Locale locale) {
+    public static String localeKey(Locale locale) {
         String key = locale.toString();
         return SUPPORTED.contains(key) ? key : DEFAULT_LOCALE;
     }

@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org"
-      th:replace="~{layout :: page('Welcome to the BluePrints Petstore', ~{::main})}">
+      th:replace="~{layout :: page(#{screen.main.title}, ~{::main})}">
 <body>
 <main>
   <img th:src="@{/images/splash.gif}" alt="Pet Selection Map" width="350" height="355">

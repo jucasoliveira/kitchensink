@@ -12,7 +12,7 @@ import com.jucasoliveira.kitchensink.catalog.domain.Product;
 import com.jucasoliveira.kitchensink.catalog.domain.ProductDetails;
 
 public record CategoryView(String id, String name, String image, String description) {
-    static CategoryView of(Category category, String locale) {
+    public static CategoryView of(Category category, String locale) {
         CategoryDetails details = category.details().get(locale);
         return new CategoryView(category.id(), details.name(), details.image(), details.description());
     }

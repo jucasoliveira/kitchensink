@@ -133,6 +133,14 @@ class CustomerRegistrationTest {
 		}
 
 		@Override
+		public Customer update(Customer customer) {
+			// Deliberately not add()'s twin: update() replaces an account that must already exist,
+			// so a fake that silently created one would hide an update against a deleted user.
+			this.byUserId.replace(customer.userId(), customer);
+			return customer;
+		}
+
+		@Override
 		public Optional<Customer> findByUserId(String userId) {
 			return Optional.ofNullable(this.byUserId.get(userId));
 		}

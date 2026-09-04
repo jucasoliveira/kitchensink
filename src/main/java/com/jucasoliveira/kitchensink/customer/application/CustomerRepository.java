@@ -8,7 +8,10 @@ import com.jucasoliveira.kitchensink.customer.domain.Customer;
 public interface CustomerRepository {
     Customer add(Customer customer);
 
+    Customer update(Customer customer);
+
     Optional<Customer> findByUserId(String userId);
 
     List<Customer> findAll();
+
 }
