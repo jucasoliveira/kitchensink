@@ -9,6 +9,7 @@ import com.jucasoliveira.kitchensink.customer.domain.Address;
 import com.jucasoliveira.kitchensink.customer.domain.ContactInfo;
 import com.jucasoliveira.kitchensink.customer.domain.Customer;
 import com.jucasoliveira.kitchensink.customer.domain.PasswordHash;
+import com.jucasoliveira.kitchensink.customer.domain.Profile;
 import org.bson.Document;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -180,6 +181,63 @@ class CustomerMongoRoundTripTest {
 		// And there is no second, third or fourth collection to join against. The database is
 		// fresh per container and nothing else in this context writes, so "exactly" is safe.
 		assertThat(this.template.getDb().listCollectionNames().into(new ArrayList<>())).containsExactly(COLLECTION);
+	}
+
+	@Test
+	@DisplayName("Issue 4.5 — ProfileEJB is a fifth bean in the same document, a sibling of account")
+	void the_profile_is_stored_beside_the_account() {
+		// CustomerEJB.ejbPostCreate:79-84 creates AccountLocal and ProfileLocal side by side and
+		// setAccount/setProfile them onto the customer — two CMR fields, not one nested in the
+		// other (customer/src/ejb-jar.xml). The document mirrors that: profile is a top-level
+		// subdocument, and putting it under account would be a quiet change of the model.
+		this.customers.add(Customer.register("ada", HASH, contact()));
+
+		Document raw = this.template.getCollection(COLLECTION).find().first();
+		assertThat(raw).isNotNull();
+		Document profile = raw.get("profile", Document.class);
+		assertThat(profile).isNotNull();
+		assertThat(raw.get("account", Document.class)).doesNotContainKey("profile");
+
+		// ProfileLocalHome.java:44-47, all four defaults. favoriteCategory is null there, and
+		// Spring Data omits a null on write exactly as it does for streetName2 above.
+		assertThat(profile).containsEntry("preferredLanguage", "en_US")
+			.containsEntry("myListPreference", true)
+			.containsEntry("bannerPreference", true)
+			.doesNotContainKey("favoriteCategory");
+	}
+
+	@Test
+	@DisplayName("Issue 4.5 — a profile round-trips whole, including the two unbuilt preference flags")
+	void a_profile_round_trips() {
+		// ProfileEJB.java:52-62 has four CMP fields and the migration carries all four, so all four
+		// have to survive the mapping. The two booleans gate T3 features nothing reads yet, which
+		// is precisely when a dropped field goes unnoticed.
+		Customer stored = new Customer("ada", HASH, Customer.register("ada", HASH, contact()).account(),
+				new Profile("ja_JP", "FISH", false, false));
+
+		this.customers.add(stored);
+
+		assertThat(this.customers.findByUserId("ada")).contains(stored);
+	}
+
+	@Test
+	@DisplayName("Issue 4.5 — update() replaces the stored customer rather than adding a second")
+	void an_update_replaces_the_stored_customer() {
+		// The port grew update() for the profile screen (CustomerEJBAction.java:138-141, which
+		// mutated the CMP beans in place). add() must stay insert-only — that is the #25 rule — so
+		// the two methods deliberately do not share an implementation.
+		Customer registered = this.customers.add(Customer.register("ada", HASH, contact()));
+		Customer switched = new Customer(registered.userId(), registered.passwordHash(), registered.account(),
+				new Profile("ja_JP", "FISH", true, true));
+
+		Customer updated = this.customers.update(switched);
+
+		assertThat(updated).isEqualTo(switched);
+		assertThat(this.customers.findByUserId("ada")).contains(switched);
+		assertThat(this.template.getCollection(COLLECTION).countDocuments()).isEqualTo(1);
+		// The credential is not the profile screen's to change, and an update that rewrote the
+		// whole document from a form would be the #25 takeover again by another route.
+		assertThat(this.customers.findByUserId("ada").orElseThrow().passwordHash()).isEqualTo(HASH);
 	}
 
 	/** One value per ContactInfoEJB / AddressEJB CMP field ({@code customer/src/ejb-jar.xml:161-223}). */

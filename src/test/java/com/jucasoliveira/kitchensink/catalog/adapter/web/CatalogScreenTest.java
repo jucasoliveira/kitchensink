@@ -200,12 +200,33 @@ class CatalogScreenTest {
 	}
 
 	@Test
-	@DisplayName("banner.jsp:81,92,103 — the three flags are the supported locales; ja_JP renders the Japanese catalogue")
+	@Tag("parity")
+	@DisplayName("banner.jsp:81,92,103 — the three flags are the supported locales; ?locale=ja_JP renders the Japanese catalogue")
 	void a_supported_locale_renders_that_locale_s_details() throws Exception {
-		this.mvc.perform(get("/catalog/categories/FISH").locale(Locale.JAPAN))
+		// Issue 4.5 changed the mechanism, and this test is where it shows. Before the
+		// SessionLocaleResolver of WebI18nConfig, Boot's default AcceptHeaderLocaleResolver was in
+		// place and this assertion passed on `.locale(Locale.JAPAN)` — i.e. on the browser's
+		// Accept-Language header. The legacy never read that header: banner.jsp:87-94 posted
+		// `locale=ja_JP` to changelocale.do, and ChangeLocaleHTMLAction.java:69 put the result on
+		// the session. The query parameter below is that request, and LocaleChangeInterceptor is
+		// that action. Sending the header instead now yields en_US, which is the point.
+		this.mvc.perform(get("/catalog/categories/FISH").param("locale", "ja_JP"))
 			.andExpect(status().isOk())
 			.andExpect(content().string(containsString("エンゼルフィッシュ")))
 			.andExpect(content().string(not(containsString("Angelfish"))));
+	}
+
+	@Test
+	@Tag("parity")
+	@DisplayName("ChangeLocaleHTMLAction.java:69 — Accept-Language is not the source of truth; the session is")
+	void the_browser_header_does_not_choose_the_catalogue() throws Exception {
+		// The half of the rule the test above cannot state: a Japanese browser that has not asked
+		// for the Japanese catalogue gets en_US, because SessionLocaleResolver.setDefaultLocale
+		// stands in for ProfileLocalHome.java:44 DefaultPreferredLanguage.
+		this.mvc.perform(get("/catalog/categories/FISH").locale(Locale.JAPAN))
+			.andExpect(status().isOk())
+			.andExpect(content().string(containsString("Angelfish")))
+			.andExpect(content().string(not(containsString("エンゼルフィッシュ"))));
 	}
 
 	@Test

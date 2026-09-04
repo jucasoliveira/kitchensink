@@ -6,12 +6,13 @@ import com.jucasoliveira.kitchensink.customer.domain.Address;
 import com.jucasoliveira.kitchensink.customer.domain.ContactInfo;
 import com.jucasoliveira.kitchensink.customer.domain.Customer;
 import com.jucasoliveira.kitchensink.customer.domain.PasswordHash;
+import com.jucasoliveira.kitchensink.customer.domain.Profile;
 
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
 
 @Document("customers")
-record CustomerDocument(@Id String userId, String passwordHash, AccountDocument account) {
+record CustomerDocument(@Id String userId, String passwordHash, AccountDocument account, ProfileDocument profile) {
         record AccountDocument(AccountStatus status, ContactInfoDocument contactInfo) {
         }
 
@@ -23,23 +24,33 @@ record CustomerDocument(@Id String userId, String passwordHash, AccountDocument 
                         String country) {
         }
 
+        record ProfileDocument(String preferredLanguage, String favoriteCategory,
+                        boolean myListPreference, boolean bannerPreference) {
+        }
+
         static CustomerDocument from(Customer c) {
                 ContactInfo ci = c.account().contactInfo();
                 Address a = ci.address();
+                Profile p = c.profile();
                 return new CustomerDocument(c.userId(), c.passwordHash().value(),
                                 new AccountDocument(c.account().status(), new ContactInfoDocument(
                                                 ci.givenName(), ci.familyName(), ci.telephone(), ci.email(),
                                                 new AddressDocument(a.streetName1(), a.streetName2(), a.city(),
-                                                                a.state(), a.zipCode(), a.country()))));
+                                                                a.state(), a.zipCode(), a.country()))),
+                                new ProfileDocument(p.preferredLanguage(), p.favoriteCategory(),
+                                                p.myListPreference(), p.bannerPreference()));
         }
 
         Customer toDomain() {
                 ContactInfoDocument ci = this.account.contactInfo();
                 AddressDocument a = ci.address();
+                ProfileDocument p = this.profile;
                 return new Customer(this.userId, new PasswordHash(this.passwordHash),
                                 new Account(this.account.status(), new ContactInfo(
                                                 ci.givenName(), ci.familyName(), ci.telephone(), ci.email(),
                                                 new Address(a.streetName1(), a.streetName2(), a.city(), a.state(),
-                                                                a.zipCode(), a.country()))));
+                                                                a.zipCode(), a.country()))),
+                                new Profile(p.preferredLanguage(), p.favoriteCategory(),
+                                                p.myListPreference(), p.bannerPreference()));
         }
 }
