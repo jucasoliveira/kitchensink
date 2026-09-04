@@ -37,6 +37,10 @@ class CustomerTest {
 		assertThat(customer.passwordHash()).isEqualTo(HASH);
 		assertThat(customer.account().status()).isEqualTo(AccountStatus.ACTIVE);
 		assertThat(customer.account().contactInfo()).isEqualTo(CONTACT);
+		// AccountEJB.ejbPostCreate:87-89 creates an empty CreditCardLocal in the same breath as the
+		// empty ContactInfoLocal, so a registered customer always has a card — an empty one. Null
+		// here would be a different model from the legacy's, not a simpler spelling of it.
+		assertThat(customer.account().creditCard()).isEqualTo(CreditCard.EMPTY);
 	}
 
 	@Test
