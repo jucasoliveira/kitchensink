@@ -21,8 +21,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * holds the two adapters to the same answers and {@link CatalogResourceTest} pins the HTTP contract,
  * so re-running nineteen assertions against H2 would buy a second copy of the same evidence. What is
  * only provable here is that nothing in {@code CatalogResource} is store-specific — in particular
- * that it carries no {@code @Profile("mongo")}, which {@code CustomerResource} does and which would
- * leave this context with the catalog API unmapped and every request below a 404.
+ * that it carries no {@code @Profile("mongo")}, which would leave this context with the catalog API
+ * unmapped and every request below a 404. {@code CustomerResource} carried exactly that guard until
+ * issue 4.6 gave the customer port a JPA adapter; {@code JpaCustomerResourceTest} is now its twin.
  *
  * <p>The annotations match {@code CatalogScreenJpaTest}'s exactly, which is not tidiness: an
  * identical configuration means Spring hands both classes the same cached context, so this file

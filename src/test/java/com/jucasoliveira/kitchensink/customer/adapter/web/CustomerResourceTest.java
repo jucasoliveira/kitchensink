@@ -195,6 +195,65 @@ class CustomerResourceTest {
 			.andExpect(content().string(containsString("Lovelace")));
 	}
 
+	@Test
+	@DisplayName("Issue 4.7 — GET /api/customers/{id} returns the aggregate, and never the credential")
+	void a_customer_is_readable_by_id() throws Exception {
+		this.mvc.perform(registration("ada")).andExpect(status().isCreated());
+
+		this.mvc.perform(get("/api/customers/ada").with(user(READER)).accept(MediaType.APPLICATION_JSON))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.userId").value("ada"))
+			.andExpect(jsonPath("$.status").value("ACTIVE"))
+			.andExpect(jsonPath("$.contactInfo.familyName").value("Lovelace"))
+			.andExpect(jsonPath("$.contactInfo.address.city").value("London"))
+			// ProfileLocalHome.java:44-47, through the API this time.
+			.andExpect(jsonPath("$.profile.preferredLanguage").value("en_US"))
+			.andExpect(content().string(not(containsString("passwordHash"))))
+			.andExpect(content().string(not(containsString(PASSWORD))));
+	}
+
+	@Test
+	@DisplayName("Issue 4.7 — an unknown id is a 404 ProblemDetail, not an empty 200 and not a 500")
+	void an_unknown_id_is_a_404() throws Exception {
+		// CustomerEJB's home declared only findByPrimaryKey and a miss was a FinderException the
+		// caller had to catch; the port made it Optional.empty() and this is where the adapter
+		// decides what an empty Optional means over HTTP. Deliberately the resource's decision and
+		// not the service's — CustomerRegistration.byUserId stays store-shaped.
+		this.mvc.perform(get("/api/customers/nobody").with(user(READER)).accept(MediaType.APPLICATION_JSON))
+			.andExpect(status().isNotFound())
+			.andExpect(jsonPath("$.title").value("Unknown Customer"))
+			.andExpect(jsonPath("$.userId").value("nobody"));
+	}
+
+	@Test
+	@DisplayName("Issue 4.7 — a validation failure names every field that failed, not just the status")
+	void an_invalid_registration_reports_each_field() throws Exception {
+		// The acceptance criterion is "400 with per-field detail". Without the handler this is a
+		// bare 400 and the caller has to guess which of RegisterCustomerCommand's constraints it
+		// broke, while the form channel renders them one by one (CustomerScreenTest). Same rules,
+		// same service, so the API should not be the poorer channel.
+		this.mvc.perform(post("/api/customers").contentType(MediaType.APPLICATION_JSON).content("{}"))
+			.andExpect(status().isBadRequest())
+			.andExpect(jsonPath("$.title").value("Validation Failed"))
+			.andExpect(jsonPath("$.errors.userId").exists())
+			.andExpect(jsonPath("$.errors.password").exists())
+			.andExpect(jsonPath("$.errors.contactInfo").exists());
+
+		assertThat(this.template.getCollection("customers").countDocuments()).isZero();
+	}
+
+	@Test
+	@DisplayName("Issue 4.7 — a nested violation is reported at its path, not at the root")
+	void a_nested_violation_keeps_its_path() throws Exception {
+		// @Valid on ContactInfo cascades into Address, so a blank city is "contactInfo.address.city"
+		// and not "contactInfo". That path is what lets a client highlight the field, and it is the
+		// same binding path the Thymeleaf form uses for th:field — one contract, two channels.
+		this.mvc.perform(post("/api/customers").contentType(MediaType.APPLICATION_JSON)
+				.content(body("ada", PASSWORD).replace("\"city\": \"London\"", "\"city\": \"\"")))
+			.andExpect(status().isBadRequest())
+			.andExpect(jsonPath("$.errors['contactInfo.address.city']").exists());
+	}
+
 	static MockHttpServletRequestBuilder registration(String userId) {
 		return post("/api/customers").contentType(MediaType.APPLICATION_JSON).content(body(userId, PASSWORD));
 	}

@@ -30,7 +30,6 @@ import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PostMapping;
 
 @Controller
-@Profile("mongo")
 @RequestMapping("/customers")
 public class CustomerController {
     private static final RegisterCustomerCommand BLANK = new RegisterCustomerCommand("", "",

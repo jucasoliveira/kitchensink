@@ -1,7 +1,6 @@
 package com.jucasoliveira.kitchensink.customer.adapter.security;
 
 import com.jucasoliveira.kitchensink.customer.application.CustomerRepository;
-import org.springframework.context.annotation.Profile;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
@@ -9,7 +8,6 @@ import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Component;
 
 @Component
-@Profile("mongo")
 class CustomerUserDetailsService implements UserDetailsService {
     private final CustomerRepository customers;
 

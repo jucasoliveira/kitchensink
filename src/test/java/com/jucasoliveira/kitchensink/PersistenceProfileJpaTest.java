@@ -37,9 +37,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * {@code jpa} there is no MongoDB, no Docker daemon and no container to wait for. If that import
  * ever becomes necessary to keep this green, the switch has stopped being a switch.
  *
- * <p>Issue 3.3 has since landed the catalog's JPA adapter, so the persistence unit is no longer
- * empty and the catalog port resolves under both profiles; the customer port still does not, and
- * 4.6 is where that closes. What this class proves is the switch itself: an H2 datasource, a
+ * <p>Issues 3.3 and 4.6 have since landed the catalog's and the customer's JPA adapters, so both
+ * ports resolve under both profiles and the customer slice is no longer absent here. What this
+ * class proves is the switch itself: an H2 datasource, a
  * Hibernate {@code EntityManagerFactory}, no Mongo stack at all, and a health endpoint that
  * reports {@code db} rather than {@code mongo}. The mirror image is
  * {@link PersistenceProfileMongoTest}; that the two stores actually answer the same questions is
@@ -83,48 +83,59 @@ class PersistenceProfileJpaTest {
 	}
 
 	@Test
-	@DisplayName("the customer port has no adapter under jpa yet — the 4.6 gap, written down")
-	void the_customer_port_has_no_adapter_yet() {
-		// Issue 1.7 wrote the Mongo adapter only; 4.6 writes the JPA one. Until then the customer
-		// port has no implementation under jpa, and nothing in src/main may inject it without a
-		// @Profile("mongo") guard or this context stops starting. AGENTS.md §5: "both persistence
-		// profiles stay green, or the gap is written down" — this is where it is written. When
-		// 4.6 lands, this flips to hasSize(1) and moves next to its mongo twin.
-		assertThat(this.context.getBeanNamesForType(CustomerRepository.class)).isEmpty();
+	@DisplayName("the customer port has exactly one adapter, and under jpa it is the JPA one — issue 4.6")
+	void the_customer_port_is_bound_to_the_jpa_adapter() {
+		// This test used to assert isEmpty(): issue 1.7 wrote the Mongo adapter only, so the port
+		// had no implementation under jpa and every collaborator carried a @Profile("mongo") guard
+		// to keep this context starting. AGENTS.md §5 asks for "both profiles green, or the gap is
+		// written down", and this is where the gap was written down. 4.6 closed it, so the
+		// assertion inverts rather than the comment being deleted — the gap is part of the record.
+		//
+		// That the two adapters answer the SAME questions is CustomerRepositoryContract's job,
+		// run once per profile; this only pins the wiring.
+		assertThat(this.context.getBeanNamesForType(CustomerRepository.class)).hasSize(1);
+		Class<?> adapter = AopProxyUtils.ultimateTargetClass(this.context.getBean(CustomerRepository.class));
+		assertThat(adapter.getPackageName())
+			.isEqualTo("com.jucasoliveira.kitchensink.customer.adapter.persistence.jpa");
 	}
 
 	@Test
-	@DisplayName("sign-on has no customer behind it under jpa yet — the 1.8 corollary of the 4.6 gap")
-	void sign_on_is_not_backed_by_the_customer_aggregate_yet() {
-		// Everything in the customer context that needs the port — the registration service and
-		// the UserDetailsService that SignOnTest proves under mongo — is guarded the same way the
-		// port's adapter is, so this context still starts. Boot's generated in-memory user fills
-		// the UserDetailsService slot meanwhile. When 4.6 lands, both guards go and this flips.
-		assertThat(this.context.getBeanNamesForType(CustomerRegistration.class)).isEmpty();
+	@DisplayName("sign-on is backed by the customer aggregate under jpa too — the 1.8 corollary of 4.6")
+	void sign_on_is_backed_by_the_customer_aggregate() {
+		// The inverse of what this asserted before 4.6. The registration service and the
+		// UserDetailsService were both @Profile("mongo") because the port had no jpa adapter, and
+		// Boot's generated in-memory user filled the UserDetailsService slot in their absence.
+		// With the adapter in place both guards came off, so a shopper registered under jpa can
+		// sign on with the password they registered — and Boot's generated user is gone, which is
+		// the half worth asserting: a UserDetailsService that silently stayed the in-memory one
+		// would let SignOnTest's mongo-side proof stand in for a jpa side that never worked.
+		assertThat(this.context.getBeanNamesForType(CustomerRegistration.class)).hasSize(1);
 		assertThat(this.context.getBeansOfType(UserDetailsService.class).values())
-			.noneMatch(service -> service.getClass().getPackageName().startsWith("com.jucasoliveira.kitchensink.customer"));
+			.anyMatch(service -> service.getClass().getPackageName().startsWith("com.jucasoliveira.kitchensink.customer"));
 	}
 
 	@Test
-	@DisplayName("the 1.9 screens and resource are absent under jpa too — the 4.6 gap, one layer up")
-	void the_customer_web_adapter_is_absent_too() {
-		// The controller and the REST resource inject CustomerRegistration, which is not here
-		// (previous test), so they carry the same @Profile("mongo") guard or this context fails
-		// to start. Same lifetime as the guard on the service: 4.6 removes all of them together.
+	@DisplayName("the 1.9 screens and the 4.7 resource are present under jpa too — 4.6, one layer up")
+	void the_customer_web_adapter_is_present_too() {
+		// Also inverted by 4.6. The controller, the REST resource and the sign-on success handler
+		// all inject CustomerRegistration, so before the jpa adapter existed they carried the same
+		// @Profile("mongo") guard or this context failed to start. Five guards came off together —
+		// the service, the UserDetailsService, and these three — because leaving any one of them
+		// behind would mean the switch was still half-done.
 		assertThat(Arrays.stream(this.context.getBeanDefinitionNames())
 			.map(this.context::getType)
 			.filter(Objects::nonNull)
 			.map(Class::getPackageName))
-			.noneMatch(pkg -> pkg.startsWith("com.jucasoliveira.kitchensink.customer.adapter.web"));
+			.anyMatch(pkg -> pkg.startsWith("com.jucasoliveira.kitchensink.customer.adapter.web"));
 	}
 
 	@Test
 	@DisplayName("the catalog port has exactly one adapter, and under jpa it is the JPA one — issue 3.3")
 	void the_catalog_port_is_bound_to_the_jpa_adapter() {
-		// The customer gap above is what a half-finished switch looks like; this is what a finished
-		// one looks like. One port, two adapters, and the only thing deciding which store answers
-		// is --spring.profiles.active. That the two adapters answer the *same* questions is proven
-		// by CatalogRepositoryContract, which runs once per profile; this only pins the wiring.
+		// The same shape as the customer port above, and the one that got there first. One port,
+		// two adapters, and the only thing deciding which store answers is --spring.profiles.active.
+		// That the two adapters answer the *same* questions is proven by CatalogRepositoryContract,
+		// which runs once per profile; this only pins the wiring.
 		// Unwrapped in case @Transactional's proxy sits in front of the bean.
 		assertThat(this.context.getBeanNamesForType(CatalogRepository.class)).hasSize(1);
 		Class<?> adapter = AopProxyUtils.ultimateTargetClass(this.context.getBean(CatalogRepository.class));
