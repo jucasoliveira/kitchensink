@@ -113,7 +113,14 @@ class SkeletonSpikeTest {
 		Document raw = this.template.getCollection("members").find().first();
 		assertThat(raw).isNotNull();
 		assertThat(raw.get("address", Document.class)).containsEntry("city", "London");
-		assertThat(this.template.getDb().listCollectionNames().into(new ArrayList<>())).containsExactly("members");
+		// Named one by one rather than "exactly one collection in the database". The catalog suites
+		// share the Testcontainers instance and seed products and items into it, so containsExactly
+		// was passing on test ordering rather than on the claim being made — issue 7.4's
+		// profile-switch script found the same latent coupling in CustomerMongoRoundTripTest, and
+		// adding MongoCatalogIndexTest was enough to shift the order and surface this one.
+		assertThat(this.template.getDb().listCollectionNames().into(new ArrayList<>()))
+			.contains("members")
+			.doesNotContain("addresses", "contactinfo");
 	}
 
 	@Test

@@ -286,3 +286,82 @@ the same decision looked at twice. Any tag that removes tests from the job that 
 will eventually make a well-tested class look untested, and the failure arrives as a number rather
 than as a name — which is the hardest kind of red to read. The gate table in §1 now says which
 tests each floor is measured over, for that reason.
+
+---
+
+## 7. The profile switch, as a command (issue 7.4)
+
+ADR-0005 puts a repository port in the application layer with two adapters behind it, and the
+MongoDB stretch goal rests entirely on that being true rather than intended. "It compiles under
+both profiles" is not evidence. The evidence is that **one test suite, in one file, passes against
+a document store and against a relational one and answers the same questions in both**.
+
+```bash
+./scripts/profile-switch.sh
+```
+
+`--mongo` or `--jpa` runs one side only — issue 7.4's "degrades to Mongo-only if the schedule
+slips".
+
+### How it works, and why not just `mvn test`
+
+The script runs three contract pairs, once per profile, then reads **Surefire's XML** to find which
+test methods actually executed and diffs the two lists:
+
+| Contract | mongo side | jpa side |
+| --- | --- | --- |
+| `CustomerRepositoryContract` | `CustomerMongoRoundTripTest` | `JpaCustomerRepositoryTest` |
+| `CatalogRepositoryContract` | `MongoCatalogRepositoryTest` | `JpaCatalogRepositoryTest` |
+| `CatalogSearchContract` | `MongoCatalogSearchTest` | `JpaCatalogSearchTest` |
+
+Both sides of each row are subclasses of one abstract contract, so a shared assertion has the *same
+method name* on both sides. Comparing method names is therefore comparing the questions asked, and
+the empty diff is the demo.
+
+Reading Surefire rather than parsing the Java is deliberate: the source lists methods that *exist*,
+which is a different claim from methods that *ran*. A subclass that stopped inheriting, or an
+`@Disabled` that crept in, shows up in the XML and nowhere else.
+
+### The output
+
+```
+    shared contract assertions run under BOTH profiles: 39
+      = a_duplicate_user_id_is_refused_by_the_store
+      = an_absent_optional_field_stays_absent
+      … 37 more …
+
+    mongo-only (2) — store-specific, no relational counterpart:
+      + the_cmp_graph_is_one_document          [CustomerMongoRoundTripTest]
+      + the_profile_is_stored_beside_the_account  [CustomerMongoRoundTripTest]
+
+OK: 39 assertions, one source, green against MongoDB and against H2.
+```
+
+**It is not an equality check, and should not be.** The Mongo subclasses add two assertions with no
+relational counterpart — the aggregate stored as one document in one collection, and `profile` as a
+sibling of `account` rather than nested in it. A script demanding symmetry would pressure someone
+into deleting them. So the rule is: *every jpa-side method must exist on the mongo side*, and
+anything extra is printed by name so the asymmetry stays deliberate and visible. A jpa-only method
+fails the run — that would mean the document side had quietly stopped making an assertion the
+relational side still makes.
+
+### Two bugs it found on its first run
+
+Worth recording, because both are the kind that stay hidden in a normal `mvn verify`:
+
+1. **`CustomerMongoRoundTripTest` asserted the database held *exactly* the `customers`
+   collection.** True only while the customer tests ran alone. The catalog suites share the
+   Testcontainers instance and seed `products` and `items` into the same database, so the assertion
+   was passing on test ordering rather than on anything it meant to say. It now names the four
+   collections that must *not* exist — `accounts`, `contactinfo`, `addresses`, `creditcards`,
+   `profiles` — which is the actual claim and is order-independent.
+
+2. **The script's own first version deleted `./target/surefire-reports`,** but `pom.xml` redirects
+   the build to `${java.io.tmpdir}/kitchensink/target`. The second run therefore read the first
+   run's reports and cheerfully declared perfect agreement between a profile and itself — 47
+   "shared" assertions including three that only exist on the Mongo side. It now asks Maven where
+   the directory is (`help:evaluate -Dexpression=project.build.directory`) rather than
+   reconstructing the path.
+
+The second one is the more instructive: a demo that cannot fail proves nothing, and this one was
+briefly incapable of failing.
