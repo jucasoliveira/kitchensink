@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layout :: page(#{screen.customer.title}, ~{::main})}">
+<body>
+<!--/*
+  customer.jsp — the signed-on shopper's own account. The legacy screen was read-only <c:out> for
+  contact info and a disabled <waf:select> for the profile; edit_customer.jsp was the writable twin
+  behind update_customer.screen. Here the contact half stays read-only and the profile half is the
+  one form, because preferredLanguage is the field 4.5 has to make settable.
+
+  Two blocks of customer.jsp are deliberately absent:
+    - Credit Card Information (customer.jsp:120-145). CreditCardEJB is the half of 4.1 (#58) that
+      has not landed; it is not in the aggregate, so there is nothing to render.
+    - bannerPreference (customer.jsp:186-196). Carried as data, but the advice banner it gates is
+      T3 under ADR-0006, so there is no key for it and no row.
+*/-->
+<main>
+  <p class="petstore_title" th:text="#{customer.account.title}">Your Account Information</p>
+
+  <p class="petstore_title" th:text="#{customer.contact.title}">Contact Information</p>
+  <table>
+    <tr>
+      <th th:text="#{customer.givenName}">First Name</th>
+      <td th:text="${customer.account().contactInfo().givenName()}">Ada</td>
+    </tr>
+    <tr>
+      <th th:text="#{customer.familyName}">Last Name</th>
+      <td th:text="${customer.account().contactInfo().familyName()}">Lovelace</td>
+    </tr>
+    <tr>
+      <th th:text="#{customer.streetName1}">Street Address</th>
+      <td>
+        <span th:text="${customer.account().contactInfo().address().streetName1()}">1 Main St</span>
+        <!-- customer.jsp:78-82 gave streetName2 its own unlabelled row; it is the one nullable
+             field of AddressEJB, so it is omitted rather than rendered empty. -->
+        <span th:if="${customer.account().contactInfo().address().streetName2()}"
+              th:text="${customer.account().contactInfo().address().streetName2()}">Flat 2</span>
+      </td>
+    </tr>
+    <tr>
+      <th th:text="#{customer.city}">City</th>
+      <td th:text="${customer.account().contactInfo().address().city()}">London</td>
+    </tr>
+    <tr>
+      <th th:text="#{customer.state}">State/Province</th>
+      <td th:text="${customer.account().contactInfo().address().state()}">LDN</td>
+    </tr>
+    <tr>
+      <th th:text="#{customer.zipCode}">Postal Code</th>
+      <td th:text="${customer.account().contactInfo().address().zipCode()}">N1 1AA</td>
+    </tr>
+    <tr>
+      <th th:text="#{customer.country}">Country</th>
+      <td th:text="${customer.account().contactInfo().address().country()}">GB</td>
+    </tr>
+    <tr>
+      <th th:text="#{customer.telephone}">Telephone Number</th>
+      <td th:text="${customer.account().contactInfo().telephone()}">020 7946 0000</td>
+    </tr>
+    <tr>
+      <th th:text="#{customer.email}">E-Mail</th>
+      <td th:text="${customer.account().contactInfo().email()}">ada@example.com</td>
+    </tr>
+  </table>
+
+  <p class="petstore_title" th:text="#{profile.title}">Profile Information</p>
+  <!-- th:action makes Thymeleaf emit the CSRF hidden input; the legacy had no such protection. -->
+  <form th:action="@{/customers/me/profile}" method="post">
+    <p>
+      <label for="preferredLanguage" th:text="#{profile.preferredLanguage}">I want MyPetStore to be in</label>
+      <!-- customer.jsp:150-156 — the same three locales as banner.jsp's three flags. -->
+      <select id="preferredLanguage" name="preferredLanguage">
+        <option value="en_US" th:text="#{language.en_US}"
+                th:selected="${customer.profile().preferredLanguage() == 'en_US'}">English</option>
+        <option value="ja_JP" th:text="#{language.ja_JP}"
+                th:selected="${customer.profile().preferredLanguage() == 'ja_JP'}">Japanese</option>
+        <option value="zh_CN" th:text="#{language.zh_CN}"
+                th:selected="${customer.profile().preferredLanguage() == 'zh_CN'}">Chinese</option>
+      </select>
+    </p>
+    <p>
+      <label for="favoriteCategory" th:text="#{profile.favoriteCategory}">My favorite category is</label>
+      <!-- customer.jsp:159-163 hardcoded BIRDS/CATS/DOGS/FISH/REPTILES, duplicating the catalogue
+           it was naming. The ids are the same; the labels come from the catalogue itself, so they
+           are localised by the same switch as everything else on the page. -->
+      <select id="favoriteCategory" name="favoriteCategory">
+        <option value=""></option>
+        <option th:each="c : ${categories}" th:value="${c.id()}" th:text="${c.name()}"
+                th:selected="${customer.profile().favoriteCategory() == c.id()}">Fish</option>
+      </select>
+    </p>
+    <button type="submit" th:text="#{profile.save}">Save</button>
+  </form>
+
+  <!-- customer.jsp:166-184 — read-only in the legacy too, a green Yes or a red No. MyList is T3
+       and unbuilt, so the flag is shown as stored and there is no control to change it. -->
+  <p>
+    <span th:text="${customer.profile().myListPreference()} ? #{yes} : #{no}">Yes</span>
+    <span th:text="#{profile.myList}">I want to enable the MyList feature.</span>
+  </p>
+</main>
+</body>
+</html>

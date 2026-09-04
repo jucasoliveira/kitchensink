@@ -1,5 +1,5 @@
 <div th:fragment="sidebar">
-  <p class="petstore_title">Pets</p>
+  <p class="petstore_title" th:text="#{sidebar.pets}">Pets</p>
   <ul>
     <li th:each="c : ${categories}">
       <a th:href="@{/catalog/categories/{id}(id=${c.id()})}" th:text="${c.name()}">Fish</a>
