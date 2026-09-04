@@ -1,9 +1,47 @@
 <div th:fragment="banner">
   <a th:href="@{/catalog}"><img th:src="@{/images/banner_logo.gif}" alt="Java Pet Store Demo logo"></a>
-  <a th:href="@{/customers}" th:text="#{banner.account}">Account</a>
-  <span th:each="flag : ${ {'en_US':'us_flag.gif','ja_JP':'ja_flag.gif','zh_CN':'zh_flag.gif'} }">
-    <a th:href="@{${currentPath}(locale=${flag.key})}">
-      <img th:src="@{/images/{f}(f=${flag.value})}" th:alt="#{'banner.locale.' + ${flag.key}}">
-    </a>
+
+  <!--/*
+       banner.jsp:63-68 — "Account | Cart | Sign in/Sign out", chosen on ${j_signon}.
+
+       Cart is absent: T3, deferred under ADR-0006, and a dead link would claim otherwise.
+
+       Account points at /customers/me, which is what customer.do reached (signon-config.xml:61
+       protected it). Registration lives on its own link because the legacy reached
+       create_customer.screen from the sign-on page, and Spring Security's generated /login has
+       nowhere to put that link.
+  */-->
+  <span th:if="${signedOnAs}">
+    <a th:href="@{/customers/me}" th:text="#{banner.account}">Account</a>
+    <span th:text="' | '">|</span>
+    <!--/* signoff.do was a GET link. Logout is a POST here because Spring Security's default
+           logout is CSRF-protected, and a GET that changes state is the one bit of the legacy
+           worth not carrying over. */-->
+    <form th:action="@{/logout}" method="post" style="display:inline">
+      <button type="submit" th:text="#{banner.signoff}">Sign out</button>
+    </form>
+  </span>
+  <span th:unless="${signedOnAs}">
+    <a th:href="@{/customers}" th:text="#{banner.register}">Register</a>
+    <span th:text="' | '">|</span>
+    <a th:href="@{/login}" th:text="#{banner.signon}">Sign in</a>
+  </span>
+
+  <!--/* banner.jsp:57-60 — a keywords box on every page, posting to search.screen. */-->
+  <form class="ps-search" th:action="@{/catalog/search}" method="get">
+    <label class="ps-visually-hidden" for="keywords" th:text="#{search.label}">Search</label>
+    <input id="keywords" name="keywords" type="text" size="8" th:value="${keywords}"
+           th:placeholder="#{search.label}">
+    <button type="submit" th:text="#{search.submit}">Search</button>
+  </form>
+
+  <!--/* One wrapper, so the stylesheet can push the whole group right. Without it `:last-child`
+         matched only the final flag and flung the Chinese one to the far edge on its own. */-->
+  <span class="ps-locales">
+    <span th:each="flag : ${ {'en_US':'us_flag.gif','ja_JP':'ja_flag.gif','zh_CN':'zh_flag.gif'} }">
+      <a th:href="@{${currentPath}(locale=${flag.key})}">
+        <img th:src="@{/images/{f}(f=${flag.value})}" th:alt="#{'banner.locale.' + ${flag.key}}">
+      </a>
+    </span>
   </span>
 </div>

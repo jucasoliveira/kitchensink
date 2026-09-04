@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" th:replace="~{layout :: page(#{screen.search.title}, ~{::main})}">
+<body>
+<main>
+  <p class="petstore_title" th:text="#{search.results}">Search Results</p>
+
+  <!--/* search.jsp printed the keywords back; without it a zero-result page is indistinguishable
+         from a page that never ran a search. */-->
+  <p th:if="${#strings.isEmpty(keywords)}" th:text="#{search.prompt}">
+    Type a keyword in the box above.
+  </p>
+  <p th:if="${not #strings.isEmpty(keywords) and #lists.isEmpty(page.contents())}"
+     th:text="#{search.none(${keywords})}">No items matched.</p>
+
+  <table class="petstore_listing" th:if="${not #lists.isEmpty(page.contents())}">
+    <tr>
+      <th th:text="#{search.item}">Item</th>
+      <th th:text="#{search.product}">Product</th>
+      <th th:text="#{search.description}">Description</th>
+      <th th:text="#{search.price}">Price</th>
+    </tr>
+    <tr th:each="i : ${page.contents()}">
+      <td><a th:href="@{/catalog/items/{id}(id=${i.id()})}" th:text="${i.id()}">EST-1</a></td>
+      <td th:text="${i.productName()}">Angelfish</td>
+      <td th:text="${i.description()}">Large</td>
+      <td th:text="${i.listPrice()}">$0.00</td>
+    </tr>
+  </table>
+
+  <a th:if="${page.previousPageAvailable()}"
+     th:href="@{/catalog/search(keywords=${keywords},start=${page.startOfPreviousPage()},count=${count})}"
+     th:text="#{page.previous}">Previous</a>
+  <a th:if="${page.hasNext()}"
+     th:href="@{/catalog/search(keywords=${keywords},start=${page.startOfNextPage()},count=${count})}"
+     th:text="#{page.next}">Next</a>
+</main>
+</body>
+</html>

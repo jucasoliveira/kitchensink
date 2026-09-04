@@ -79,8 +79,10 @@ public class CustomerEntity {
     private String zipCode;
     private String country;
 
-    // CreditCardEJB. Always the empty card in this slice: AccountEJB.ejbPostCreate:87-89 created it
-    // empty and the screens that filled it are T3, deferred under ADR-0006.
+    // CreditCardEJB. Always the empty card in this slice — a deliberate deviation, not a scope
+    // gap: create_customer.jsp collected credit_card_number/_type/_expiry_* at registration
+    // (CustomerHTMLAction.java:96) and this slice does not, because storing a card number is not
+    // something it should do. AccountEJB.ejbPostCreate:87-89 created it empty anyway.
     private String cardNumber;
     private String cardType;
     private String expiryDate;

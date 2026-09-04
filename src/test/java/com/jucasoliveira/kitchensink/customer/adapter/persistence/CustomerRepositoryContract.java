@@ -317,12 +317,16 @@ public abstract class CustomerRepositoryContract {
 		// read would pass it and pass the whole-record equality check as well. This one puts a
 		// distinct value in each of the three columns.
 		//
-		// Nothing in the delivered slice reaches this state. AccountEJB.ejbPostCreate created the
-		// card empty, and the screens that filled it — enter_order_information.screen and the
-		// checkout flow — are T3, deferred under ADR-0006. The field is carried for structural
-		// parity with finding #4, so what is proven here is that it *would* carry data, not that
-		// anything in T1/T2 puts data in it. The card number is an obvious placeholder for the
-		// same reason: no real PAN is ever collected by this application.
+		// Nothing in the delivered slice reaches this state, and the reason is a deviation rather
+		// than a scope gap: create_customer.jsp collected credit_card_number, credit_card_type and
+		// credit_card_expiry_* at REGISTRATION (CustomerHTMLAction.java:96 extractCreditCard), and
+		// this slice deliberately does not, because storing a card number is not something it
+		// should do and nothing in scope reads one. AccountEJB.ejbPostCreate:87-89 created the card
+		// empty regardless, so CreditCard.EMPTY is a state the legacy itself produced.
+		//
+		// The field is carried for structural parity with finding #4, so what is proven here is
+		// that it *would* carry data, not that anything puts data in it. The card number is an
+		// obvious placeholder for the same reason: no real PAN is ever collected.
 		Customer registered = Customer.register("ada", HASH, contact());
 		Customer withCard = new Customer(registered.userId(), registered.passwordHash(),
 				new Account(registered.account().status(), registered.account().contactInfo(),

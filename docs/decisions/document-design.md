@@ -96,6 +96,15 @@ Two details worth defending:
   columns, which is what `cch.create()` produced. An absent key would mean "no card at all", which
   the legacy never did.
 
+  Worth being precise about *why* it stays empty here, because the obvious explanation is wrong:
+  it is **not** because only checkout filled it. `create_customer.jsp` collected
+  `credit_card_number`, `credit_card_type` and `credit_card_expiry_month/year`, and
+  `CustomerHTMLAction.java:96` called `extractCreditCard(request)` — the legacy took a card **at
+  registration**. This slice deliberately does not: storing a card number is not something it
+  should do and nothing in the delivered scope reads one. Since `AccountEJB.ejbPostCreate:87-89`
+  created the card empty anyway, `CreditCard.EMPTY` is a state the legacy itself produced — so the
+  *shape* is faithful and the *deviation* is that the registration form has three fewer fields.
+
 **Reads removed:** loading one shopper was a primary-key read plus six CMR traversals, each of
 which the container resolved as a join or a separate select depending on its fetch strategy. It is
 now one `findById`.

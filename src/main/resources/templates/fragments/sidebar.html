@@ -5,4 +5,12 @@
       <a th:href="@{/catalog/categories/{id}(id=${c.id()})}" th:text="${c.name()}">Fish</a>
     </li>
   </ul>
+  <!--/*
+       An unseeded store rendered a heading and an empty list, which reads as a broken page rather
+       than an empty database — scripts/run.sh does not seed, only scripts/seed.sh does. The legacy
+       had the same trap behind GET /Populate, and PopulateServlet existed because of it.
+  */-->
+  <p th:if="${#lists.isEmpty(categories)}" th:text="#{sidebar.empty}">
+    No categories yet — start the app with scripts/seed.sh to load the catalog.
+  </p>
 </div>
