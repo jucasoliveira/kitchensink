@@ -9,6 +9,7 @@ import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Profile;
+import org.springframework.core.annotation.Order;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.stereotype.Component;
@@ -16,6 +17,7 @@ import org.springframework.stereotype.Component;
 @Component
 @Profile("mongo")
 @ConditionalOnProperty(name = "kitchensink.seed.catalog", havingValue = "true")
+@Order(100)
 public class CatalogSeeder implements ApplicationRunner {
     private static final String FIXTURE = "seed/catalog.json";
     private static final List<String> COLLECTIONS = List.of("categories", "products", "items");

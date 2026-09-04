@@ -100,9 +100,19 @@ class CustomerMongoRoundTripTest extends CustomerRepositoryContract {
 		Document card = account.get("creditCard", Document.class);
 		assertThat(card).isNotNull().isEmpty();
 
-		// And there is no second, third or fourth collection to join against. The database is
-		// fresh per container and nothing else in this context writes, so "exactly" is safe.
-		assertThat(this.template.getDb().listCollectionNames().into(new ArrayList<>())).containsExactly(COLLECTION);
+		// And there is no second, third, fourth or fifth collection to join against — named one by
+		// one, after the CMP entity beans whose container-generated tables they would have been.
+		//
+		// This used to assert the database held EXACTLY one collection, which was true only while
+		// the customer tests ran alone. The catalog suites share the Testcontainers instance and
+		// seed products and items into the same database, so the assertion passed on ordering
+		// rather than on anything it meant to say — issue 7.4's profile-switch script, which runs
+		// the customer and catalog contracts in one JVM, is what surfaced it. Naming the
+		// collections that must NOT exist is both the claim actually being made and independent of
+		// what else is in the database.
+		assertThat(this.template.getDb().listCollectionNames().into(new ArrayList<>()))
+			.contains(COLLECTION)
+			.doesNotContain("accounts", "contactinfo", "addresses", "creditcards", "profiles");
 	}
 
 	@Test

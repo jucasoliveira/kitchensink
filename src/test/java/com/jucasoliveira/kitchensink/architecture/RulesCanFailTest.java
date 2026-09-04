@@ -81,6 +81,31 @@ class RulesCanFailTest {
 	}
 
 	@Test
+	@DisplayName("issue 7.1 — an adapter that implements no port is caught, however right it looks")
+	void the_adapter_implements_a_port_rule_bites() {
+		// LeakyOrphanRepository is in a persistence-adapter package and named like an adapter, and
+		// that is all it has in common with one. The rule names it because it reaches for nothing
+		// in the application layer, which is the only thing that would make it an adapter.
+		//
+		// The evidence line is what it DOES depend on rather than what it is missing — this is a
+		// positive "should depend on" rule, so the report lists the dependencies it found and
+		// java.lang.Object is the whole list. That absence is exactly the finding.
+		assertViolated(LayeringRulesTest.persistence_adapters_implement_a_port, "LeakyOrphanRepository",
+				"java.lang.Object");
+	}
+
+	@Test
+	@DisplayName("issue 7.1 — a mapped store type handed upwards is caught, by package rather than by name")
+	void the_store_mapping_containment_rule_bites() {
+		// The same LeakyService that breaks the port/adapter inversion breaks this too, and that
+		// overlap is the point: the inversion rule catches it because an application class named an
+		// adapter, this one catches it because anything at all outside the adapter did. The second
+		// covers shared and the root package, which the first does not mention.
+		assertViolated(LayeringRulesTest.store_mappings_do_not_escape_their_adapter, "LeakyService",
+				"LeakyDocument");
+	}
+
+	@Test
 	@DisplayName("and a rule the fixtures do not break stays quiet, so the violations above are the rule's, not the fixture's")
 	void a_rule_the_fixtures_respect_reports_nothing() {
 		// The fixtures never touch jakarta.persistence; if this rule fired on them, the assertions

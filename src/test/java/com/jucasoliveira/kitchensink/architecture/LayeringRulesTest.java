@@ -169,6 +169,59 @@ class LayeringRulesTest {
 		.because("the relational mapping is an adapter concern, symmetric with the Mongo one");
 
 	/**
+	 * Issue 7.1 — every persistence adapter actually implements a port.
+	 *
+	 * <p>The rules above police what an adapter may <em>not</em> reach for. This is the positive
+	 * half, and it is the one the profile switch depends on: a class that looks like an adapter,
+	 * sits in an adapter package and is picked up by {@code @Profile}, but implements no interface
+	 * from the application layer, is a store-specific dead end that no port can resolve to. Under
+	 * the wrong profile the context would simply start with the port unsatisfied.
+	 *
+	 * <p>Four classes satisfy this today — the Mongo and JPA adapters for the catalog (issues 3.2,
+	 * 3.3) and for the customer (issues 1.7, 4.6). Naming the shape rather than the four classes is
+	 * what makes it a rule rather than a checklist.
+	 */
+	@ArchTest
+	static final ArchRule persistence_adapters_implement_a_port = classes().that()
+		.resideInAPackage(PERSISTENCE_ADAPTER)
+		.and()
+		.haveSimpleNameEndingWith("Repository")
+		.and()
+		.areNotInterfaces()
+		.should()
+		.dependOnClassesThat()
+		.resideInAPackage(APPLICATION)
+		.because("ADR-0005 §2-4: an adapter exists to satisfy a port, and one that satisfies none "
+				+ "cannot be the thing --spring.profiles.active resolves to");
+
+	/**
+	 * Issue 7.1 — the store mapping stops at the adapter boundary.
+	 *
+	 * <p>{@code CustomerDocument} and {@code CustomerEntity} are the same aggregate written twice,
+	 * once per store, and neither may travel. The rules above forbid the store's <em>annotations</em>
+	 * leaving their package; this forbids the mapped <em>types</em> leaving it, which is the more
+	 * likely leak: returning a {@code CustomerEntity} from a service is a small, plausible
+	 * convenience that would make the application layer relational and the profile switch a
+	 * fiction, without importing a single {@code jakarta.persistence} name outside the adapter.
+	 *
+	 * <p>Stated as "nothing outside a persistence adapter package depends on anything inside one"
+	 * rather than by type name. Matching on {@code *Entity} / {@code *Document} was the obvious
+	 * spelling and the wrong one: it would have caught {@code ResponseEntity} and
+	 * {@code org.bson.Document} and failed the build for a controller that had done nothing wrong.
+	 * By package it is exact, and it subsumes the two rules above — the web adapter and the
+	 * application layer are both "outside" — while also covering {@code shared} and the root
+	 * package, which neither of those two mentions.
+	 */
+	@ArchTest
+	static final ArchRule store_mappings_do_not_escape_their_adapter = noClasses().that()
+		.resideOutsideOfPackage(PERSISTENCE_ADAPTER)
+		.should()
+		.dependOnClassesThat()
+		.resideInAPackage(PERSISTENCE_ADAPTER)
+		.because("ADR-0005 §2: the port speaks in domain aggregates, so an adapter's mapped types "
+				+ "are the one thing it must never hand upwards; only component scanning reaches in");
+
+	/**
 	 * Hashing happens in exactly one place. Issue 1.8 replaces {@code UserEJB.java:88}'s plaintext
 	 * {@code equals} with BCrypt, and the guarantee is only worth something if there is one code
 	 * path that produces a hash: the application service. The web adapter of 1.9 binds a form and
