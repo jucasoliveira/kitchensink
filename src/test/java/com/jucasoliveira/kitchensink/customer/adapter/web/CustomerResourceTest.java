@@ -18,6 +18,7 @@ import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.not;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
@@ -45,6 +46,20 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @AutoConfigureMockMvc
 @Import(TestcontainersConfiguration.class)
 class CustomerResourceTest {
+
+	/**
+	 * Issue 4.2 (#59) took {@code GET /api/customers} out of the permit list: the resource
+	 * returns the whole aggregate — email, telephone and full address — so the chain now turns
+	 * an anonymous read away, while {@code POST} to the same path stays public because creating
+	 * an account cannot require a session ({@code createuser.do} was never in
+	 * {@code signon-config.xml}). That is why the permit is written per-method rather than
+	 * per-path, and why the reads below authenticate and the registrations do not. The identity
+	 * is irrelevant — the listing is not per-user — so this is a synthetic principal, which
+	 * keeps these tests about the resource rather than about sign-on.
+	 * {@code SignOnConfigParityTest} is where the rule itself is pinned.
+	 */
+	static final String READER = "reader";
+
 
 	static final String PASSWORD = "s3cret";
 
@@ -85,7 +100,7 @@ class CustomerResourceTest {
 		this.mvc.perform(registration("ada")).andExpect(status().isCreated());
 		this.mvc.perform(registration("grace")).andExpect(status().isCreated());
 
-		this.mvc.perform(get("/api/customers").accept(MediaType.APPLICATION_JSON))
+		this.mvc.perform(get("/api/customers").with(user(READER)).accept(MediaType.APPLICATION_JSON))
 			.andExpect(status().isOk())
 			.andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
 			.andExpect(jsonPath("$", hasSize(2)))
@@ -96,7 +111,7 @@ class CustomerResourceTest {
 	@Test
 	@DisplayName("GET /api/customers on an empty store is an empty array, not a 404")
 	void an_empty_list_is_an_empty_array() throws Exception {
-		this.mvc.perform(get("/api/customers").accept(MediaType.APPLICATION_JSON))
+		this.mvc.perform(get("/api/customers").with(user(READER)).accept(MediaType.APPLICATION_JSON))
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$", hasSize(0)));
 	}
@@ -137,7 +152,7 @@ class CustomerResourceTest {
 
 		// Same rule as the screen, other channel, and the same thing at stake: not "how many
 		// documents" but "whose account".
-		this.mvc.perform(get("/api/customers").accept(MediaType.APPLICATION_JSON))
+		this.mvc.perform(get("/api/customers").with(user(READER)).accept(MediaType.APPLICATION_JSON))
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$", hasSize(1)))
 			.andExpect(jsonPath("$[0].contactInfo.email").value("ada@example.com"));
@@ -162,7 +177,7 @@ class CustomerResourceTest {
 	void a_form_registration_is_visible_over_the_api() throws Exception {
 		this.mvc.perform(CustomerScreenTest.registration("ada").with(csrf())).andExpect(status().is3xxRedirection());
 
-		this.mvc.perform(get("/api/customers").accept(MediaType.APPLICATION_JSON))
+		this.mvc.perform(get("/api/customers").with(user(READER)).accept(MediaType.APPLICATION_JSON))
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$", hasSize(1)))
 			.andExpect(jsonPath("$[0].userId").value("ada"))
@@ -174,7 +189,7 @@ class CustomerResourceTest {
 	void an_api_registration_is_visible_on_the_page() throws Exception {
 		this.mvc.perform(registration("grace")).andExpect(status().isCreated());
 
-		this.mvc.perform(get("/customers"))
+		this.mvc.perform(get("/customers").with(user(READER)))
 			.andExpect(status().isOk())
 			.andExpect(content().string(containsString("grace")))
 			.andExpect(content().string(containsString("Lovelace")));

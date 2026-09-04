@@ -134,7 +134,10 @@ class SignOnConfigParityTest {
 	@Tag("parity")
 	@DisplayName("the store front and the catalogue were never in signon-config.xml, and are still public")
 	void browsing_needs_no_session() throws Exception {
-		this.mvc.perform(get("/")).andExpect(status().isOk());
+		// "/" is HomeController's redirect to /catalog (d2ab573), so a 302 is the handler and not
+		// the chain — the URL under test is public either way, and naming the target is what tells
+		// the two apart. A regression here would send it to /login instead.
+		this.mvc.perform(get("/")).andExpect(redirectedUrl("/catalog"));
 		this.mvc.perform(get("/catalog")).andExpect(status().isOk());
 		this.mvc.perform(get("/api/catalog/categories")).andExpect(status().isOk());
 	}

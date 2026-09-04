@@ -20,6 +20,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.not;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
@@ -52,6 +53,17 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @AutoConfigureMockMvc
 @Import(TestcontainersConfiguration.class)
 class CustomerScreenTest {
+
+	/**
+	 * Issue 4.2 (#59) made the member listing a signed-on view: {@code /customers} renders the
+	 * registration form to anyone but its table of registered shoppers only to a caller with a
+	 * {@code Principal}, and {@code GET /api/customers} is turned away by the chain entirely.
+	 * Reads of the listing below therefore authenticate. The identity is irrelevant — the list
+	 * is not per-user — so this is a synthetic principal rather than a registered customer,
+	 * which keeps these tests about the resource rather than about sign-on.
+	 * {@code SignOnConfigParityTest} is where the rule itself is pinned.
+	 */
+	static final String READER = "reader";
 
 	static final String PASSWORD = "s3cret";
 
@@ -98,7 +110,7 @@ class CustomerScreenTest {
 			.andExpect(status().is3xxRedirection())
 			.andExpect(redirectedUrl("/customers"));
 
-		this.mvc.perform(get("/customers"))
+		this.mvc.perform(get("/customers").with(user(READER)))
 			.andExpect(status().isOk())
 			.andExpect(content().string(containsString("ada")))
 			.andExpect(content().string(containsString("Lovelace")))
@@ -174,7 +186,7 @@ class CustomerScreenTest {
 				.with(csrf()))
 			.andExpect(status().isConflict());
 
-		this.mvc.perform(get("/customers"))
+		this.mvc.perform(get("/customers").with(user(READER)))
 			.andExpect(status().isOk())
 			.andExpect(content().string(containsString("Lovelace")))
 			.andExpect(content().string(not(containsString("Mallory"))))
@@ -194,7 +206,7 @@ class CustomerScreenTest {
 	void the_credential_never_reaches_the_page() throws Exception {
 		this.mvc.perform(registration("ada").with(csrf())).andExpect(status().is3xxRedirection());
 
-		this.mvc.perform(get("/customers"))
+		this.mvc.perform(get("/customers").with(user(READER)))
 			.andExpect(status().isOk())
 			.andExpect(content().string(not(containsString(PASSWORD))))
 			.andExpect(content().string(not(containsString("$2a$"))))
