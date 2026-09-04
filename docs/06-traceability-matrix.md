@@ -51,12 +51,12 @@ remaining widening (credit card, profile, full URL-protection parity) and the ca
 | Legacy component | New component / status | Note |
 | --- | --- | --- |
 | `UserEJB` (userName, password) | ✅ Built, with a deviation | [`PasswordHash.java`](../src/main/java/com/jucasoliveira/kitchensink/customer/domain/PasswordHash.java) — BCrypt, not the plaintext `password.equals(getPassword())` at `UserEJB.java:88` (finding #1). Deliberate parity deviation, called out in the README per ADR-0006. |
-| `CustomerEJB` (userId) | ✅ Built | [`Customer.java`](../src/main/java/com/jucasoliveira/kitchensink/customer/domain/Customer.java) — aggregate root, issue 1.7. |
+| `CustomerEJB` (userId) | ✅ Built (`mongo` profile only) | [`Customer.java`](../src/main/java/com/jucasoliveira/kitchensink/customer/domain/Customer.java) — aggregate root, issue 1.7; widened to five embedded values by issue 4.1. **Profile gap, recorded per `03-migration-plan.md` §4.4:** unlike the catalog, the customer slice has no JPA adapter, so `CustomerRepository`, `CustomerRegistration`, `CustomerUserDetailsService`, `CustomerController`, `CustomerResource` and `PreferredLanguageSuccessHandler` all carry `@Profile("mongo")` and the slice is absent under `jpa`. Issue 4.6 (#27) closes it and lifts the six guards, the way issue 3.3 lifted the one on `CatalogService`; issue 7.4 (#46), the profile-switch demo, is blocked until it does. The port-level expectations are already written and store-agnostic — [`CustomerRepositoryContract.java`](../src/test/java/com/jucasoliveira/kitchensink/customer/adapter/persistence/CustomerRepositoryContract.java), 15 assertions — so the JPA adapter inherits them rather than getting a second suite. |
 | `AccountEJB` (status) | ✅ Built | [`Account.java`](../src/main/java/com/jucasoliveira/kitchensink/customer/domain/Account.java) — embedded value, not a separate CMP entity. |
-| `ProfileEJB` (preferredLanguage, favoriteCategory, myListPreference, bannerPreference) | 🔜 Planned | Issue 4.5, customer/profile screens + `MessageSource` (en_US, ja_JP). No `Profile` type exists yet. |
+| `ProfileEJB` (preferredLanguage, favoriteCategory, myListPreference, bannerPreference) | ✅ Built | [`Profile.java`](../src/main/java/com/jucasoliveira/kitchensink/customer/domain/Profile.java) — embedded value, a sibling of `Account` rather than nested in it, mirroring the two CMR fields `CustomerEJB.ejbPostCreate:78-84` sets side by side. `Profile.DEFAULT` carries all four `ProfileLocalHome` defaults. Issues 4.5 and 4.1. |
 | `ContactInfoEJB` | ✅ Built | [`ContactInfo.java`](../src/main/java/com/jucasoliveira/kitchensink/customer/domain/ContactInfo.java) — embedded value; collapses the 4-jar duplication (finding #4). |
 | `AddressEJB` | ✅ Built | [`Address.java`](../src/main/java/com/jucasoliveira/kitchensink/customer/domain/Address.java) — embedded value, same collapse. |
-| `CreditCardEJB` | 🔜 Planned | Issue 4.1, widen the customer aggregate. Not yet an embedded value in `Customer`. |
+| `CreditCardEJB` (cardNumber, cardType, expiryDate) | ✅ Built | [`CreditCard.java`](../src/main/java/com/jucasoliveira/kitchensink/customer/domain/CreditCard.java) — embedded value on `Account`, issue 4.1. Declared twice in the legacy (`components/customer/src/ejb-jar.xml`, `components/purchaseorder/src/ejb-jar.xml`); one record here (finding #4). `AccountEJB.ejbPostCreate:87-89` created it **empty** at registration, so `Customer.register` attaches `CreditCard.EMPTY` and no card data is ever collected — the screens that filled it are T3, deferred under ADR-0006. The `getExpiryMonth`/`getExpiryYear` `"01"`/`"2010"` fallbacks (`CreditCardEJB.java:88-107`) are pinned by [`CreditCardTest`](../src/test/java/com/jucasoliveira/kitchensink/customer/domain/CreditCardTest.java), `@Tag("parity")`. |
 | `PurchaseOrderEJB` | 🧭 Designed, not built | Issue 5.4, `PurchaseOrder` aggregate + empty-cart rule. |
 | `LineItemEJB` | 🧭 Designed, not built | Embedded in the (unbuilt) `PurchaseOrder`/`SupplierOrder` aggregates, issues 5.4/6.5. |
 | `SupplierOrderEJB` | 🧭 Designed, not built | Issue 6.5, supplier inventory decrement. |
@@ -121,8 +121,8 @@ Anchor: `apps/petstore/src/docroot/WEB-INF/mappings.xml`, walked in
 
 | Status | Count | Of 33 EJBs |
 | --- | --- | --- |
-| ✅ Built | 6 | `UserEJB`, `CustomerEJB`, `AccountEJB`, `ContactInfoEJB`, `AddressEJB`, `SignOnEJB` |
-| 🔜 Planned (T1/T2, open issue) | 3 | `CatalogEJB`, `ProfileEJB`, `CreditCardEJB` |
+| ✅ Built | 9 | `UserEJB`, `CustomerEJB`, `AccountEJB`, `ContactInfoEJB`, `AddressEJB`, `SignOnEJB`, `ProfileEJB`, `CreditCardEJB`, `CatalogEJB` (read path; write path is T3) |
+| 🔜 Planned (T1/T2, open issue) | 0 | — every T1/T2 bean in the slice has landed |
 | 🧭 Designed, not built (T3) | 20 | The remaining session beans, entity beans and all 4 non-mail MDBs |
 | ❌ Dropped | 4 | The 4 `Mail*MDB` beans |
 
