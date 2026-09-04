@@ -1,6 +1,8 @@
 package com.jucasoliveira.kitchensink.customer.adapter.web;
 
 import java.security.Principal;
+import java.util.List;
+
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.servlet.LocaleResolver;
@@ -43,18 +45,24 @@ public class CustomerController {
     }
 
     @GetMapping
-    String page(Model model) {
-        return page(model, BLANK);
+    String page(Model model, Principal principal) {
+        return page(model, BLANK, principal);
     }
 
     @PostMapping
     public String register(@Valid @ModelAttribute("command") RegisterCustomerCommand command, BindingResult binding,
-            Model model) {
+            Model model, Principal principal) {
         if (binding.hasErrors()) {
-            return page(model, command);
+            return page(model, command, principal);
         }
         registration.register(command);
         return "redirect:/customers";
+    }
+
+    private String page(Model model, RegisterCustomerCommand command, Principal principal) {
+        model.addAttribute("command", command);
+        model.addAttribute("customers", principal == null ? List.of() : registration.registered());
+        return "customers";
     }
 
     @GetMapping("/me")
